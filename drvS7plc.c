@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.2 2005/02/14 13:03:10 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@
 #endif
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.2 2005/02/14 13:03:10 zimoch Exp $";
 
 static long s7plcIoReport(); 
 static long s7plcInit();
@@ -114,14 +114,14 @@ static long s7plcIoReport()
                 device->station[i].upStatus,  device->station[i].upStatusSize);
             printf("              connStatus @ %p\n",
                 device->station[i].connStatus);
-            printf("              swapBytes %s\n",
+            printf("              swapBytes  %s\n",
                 device->station[i].swapBytes ? 
 #if (__BYTE_ORDER == __LITTLE_ENDIAN)
-                    "ioc:intel <-> s7:motorola"
+                    "ioc:intel <-> s7:motorola" : "no, both intel"
 #else
-                    "ioc:motorola <-> s7:intel"
+                    "ioc:motorola <-> s7:intel" : "no, both motorola"
 #endif
-                    : "no");
+                    );
         }
     }
     return 0;
