@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/16 17:53:19 $ */
-/* $Id: ticp.h,v 1.2 2005/02/16 17:53:19 zimoch Exp $ */
+/* $Date: 2005/02/28 10:25:53 $ */
+/* $Id: ticp.h,v 1.3 2005/02/28 10:25:53 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.2 $ */
+/* $Revision: 1.3 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -178,7 +178,6 @@ typedef struct sm_ly {
 /* Client task description table element */
 
 typedef struct dCoC {
-    epicsThreadId task_id; /* Task ID */                             
     char* task_name;       /* Task name */                           
     char ip_adr[16];       /* PLC IP address */                      
     short rdBlSize;        /* Read block size (in bytes) */          

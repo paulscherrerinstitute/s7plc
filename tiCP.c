@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 09:39:43 $ */
-/* $Id: tiCP.c,v 1.5 2005/02/28 09:39:43 zimoch Exp $ */
+/* $Date: 2005/02/28 10:25:53 $ */
+/* $Id: tiCP.c,v 1.6 2005/02/28 10:25:53 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.5 $ */
+/* $Revision: 1.6 $ */
 
 
 /*=============================================================================
@@ -184,6 +184,7 @@
 #include <arpa/inet.h> 
 #ifdef __vxworks
 #include <sockLib.h>
+#include <taskLib.h>
 #else
 #include <fcntl.h>
 #endif
@@ -209,6 +210,8 @@ typedef struct {
     sm_layout* pSM;
     int nr_coc;
     int sock;
+    epicsThreadId tid;
+    int restart;
 } tcpClientContext;
 
 /* run-time debugging printout switch */
@@ -223,7 +226,7 @@ static char RemoteHeader = FALSE;    /* default version is without remote header
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.5 2005/02/28 09:39:43 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.6 2005/02/28 10:25:53 zimoch Exp $";
 
 static tcpClientContext clientContext [MAX_COC];
 static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv data */       
@@ -257,27 +260,23 @@ static BOOL cmd_msg_out;                /*  command: send new message block */
 static short int     RepLev;            /*  report level */
 static short int     RepCoc;            /*  report channel */
 
-/* static epicsThreadId tidICP = 0;    DZ*/       /* tid of ICP itself */
-static epicsThreadId tidClient[MAX_COC] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};    /* Array
-                                of client tid to be used during shutdown */
-static short clientRestart[MAX_COC] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};    /* Array of restart flags for clients */
 static dCoC CoC[] = {
-        {0,"TcpClient 0","", 0, 0, 0},
-        {0,"TcpClient 1","", 0, 0, 0},
-        {0,"TcpClient 2","", 0, 0, 0},
-        {0,"TcpClient 3","", 0, 0, 0},
-        {0,"TcpClient 4","", 0, 0, 0},
-        {0,"TcpClient 5","", 0, 0, 0},
-        {0,"TcpClient 6","", 0, 0, 0},
-        {0,"TcpClient 7","", 0, 0, 0},
-        {0,"TcpClient 8","", 0, 0, 0},
-        {0,"TcpClient 9","", 0, 0, 0},
-        {0,"TcpClient 10","", 0, 0, 0},
-        {0,"TcpClient 11","", 0, 0, 0},
-        {0,"TcpClient 12","", 0, 0, 0},
-        {0,"TcpClient 13","", 0, 0, 0},
-        {0,"TcpClient 14","", 0, 0, 0},
-        {0,"TcpClient 15","", 0, 0, 0}
+        {"TcpClient 0","", 0, 0, 0},
+        {"TcpClient 1","", 0, 0, 0},
+        {"TcpClient 2","", 0, 0, 0},
+        {"TcpClient 3","", 0, 0, 0},
+        {"TcpClient 4","", 0, 0, 0},
+        {"TcpClient 5","", 0, 0, 0},
+        {"TcpClient 6","", 0, 0, 0},
+        {"TcpClient 7","", 0, 0, 0},
+        {"TcpClient 8","", 0, 0, 0},
+        {"TcpClient 9","", 0, 0, 0},
+        {"TcpClient 10","", 0, 0, 0},
+        {"TcpClient 11","", 0, 0, 0},
+        {"TcpClient 12","", 0, 0, 0},
+        {"TcpClient 13","", 0, 0, 0},
+        {"TcpClient 14","", 0, 0, 0},
+        {"TcpClient 15","", 0, 0, 0}
 };
 
 /*=============================================================================
@@ -288,8 +287,8 @@ void ICP_version();
 void ticp (ticpArgs* args);
 STATUS tcpClient (tcpClientContext* context);
 BOOL   copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc);
-int    wfTimeoutOrRxdata(int sockD, int nr_coc);
-int    establishConnection(int sockD, char * serverIP, int setverPort);
+int    wfTimeoutOrRxdata(int sock, int nr_coc);
+int    establishConnection(int sock, char * serverIP, int setverPort);
 /*int  cleanup(WIND_TCB *pTcb);*/
 
 BOOL   sm_Init(sm_layout* pSM);                                   /* initialize up/dwn data buffer */
@@ -331,23 +330,6 @@ void ICP_start(sm_layout* pSM,        /* allocated memory table */
     static ticpArgs args;
     RemoteHeader = (RemHead)? TRUE: FALSE;
     
-
-#if 0
-    taskSpawn(ICP_TASK_NAME,    /* task name */
-        MED_PRI,        /* Priority */
-        0,            /* Option */
-        STACK_SIZE,        /* Stack size */
-        ticp,        /* Entry point */
-        0,            /* Station list (obsolete, replaced with conf file) */
-        (int)devName,    /* Device name */
-        RepLev,        /* Report Level */
-        0,            /* Test mode */
-        GlbSwapBytes,    /* Swap bytes flag */
-        (int)ifName,    /* Interface name */
-        (int)ifAddr,    /* Interface address */
-        ifMask,        /* Interface mask */
-        0, 0);
-#endif
     args.ConfCode = 0;
     args.pSM = pSM;
     args.GlbRepLev = RepLev;
@@ -605,44 +587,6 @@ void ticp (ticpArgs* args)
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         errlogPrintf("\nStarting tiCP ConfCode:%X\n", RConfCode);
 
-    /* start communication with master station */
-
-#if 0    /* Korobov: all stations are independent */
-
-    CoC[0].task_id = taskSpawn(CoC[0].task_name,
-                    MED_PRI,
-                    0,
-                    STACK_SIZE,
-                    tcpClient,
-                    (int)CoC[0].ip_adr,
-                    SERVER_PORT_NUM,
-                    (int)pSM,
-                    0, 0, 0, 0, 0, 0, 0);
-    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))errlogPrintf("ICP: task 0 started.\n");
-    tidClient[0] = CoC[0].task_id;
-    pSM->com_sta.status[H_ADR_ALIVE_CTR + 1] = TRUE;    /* set alive
-                                flag for the client 0 */
-
-    /* wait until first data received */
-
-    msg_sent_once = FALSE;
-    while (SmInitialized == FALSE) {
-        if (msg_sent_once == FALSE) {
-
-            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP: wait until shared memory initialized .\n");
-            msg_sent_once = TRUE;
-        }
-
-        UpstreamHeartbeat(pSM);
-
-        epicsThreadSleep(DelayTicks990ms);
-    }
-    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-        errlogPrintf("ICP: shared memory initialized.\n");
-
-#endif
-
     /* check station_list and install communication tasks */
     ConfCodeMask = 1;
     StationList = RConfCode;
@@ -654,14 +598,13 @@ void ticp (ticpArgs* args)
             clientContext[idx].serverPortin = SERVER_PORT_NUM;
             clientContext[idx].pSM = pSM;
             clientContext[idx].nr_coc = idx;
-            clientContext[idx].sock = -1;
-            CoC[idx].task_id = epicsThreadCreate(
+            clientContext[idx].sock = 0;
+            clientContext[idx].tid = epicsThreadCreate(
                                     CoC[idx].task_name,
                                     MED_PRI,
                                     STACK_SIZE,
                                     (EPICSTHREADFUNC)tcpClient,
                                     &clientContext[idx]);
-            tidClient[idx] = CoC[idx].task_id;
             pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = TRUE;    /* set alive flag */
 
             if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -694,13 +637,13 @@ void ticp (ticpArgs* args)
         /* check whether all clients are running */
 
         for (idx =0;idx < MAX_COC;idx++) {
-            if (tidClient[idx]) {    /* only for existing clients */
+            if (clientContext[idx].tid) {    /* only for existing clients */
 
                 if (TICP_debug)
                     errlogPrintf("ICP: idx=%d task '%s' IP='%s'\n",
                         idx, CoC[idx].task_name, CoC[idx].ip_adr);
 
-                if (epicsThreadIsSuspended(tidClient[idx])) {    /* if suspended delete it */
+                if (epicsThreadIsSuspended(clientContext[idx].tid)) {    /* if suspended delete it */
                     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG)) {
                         errlogPrintf("ICP: task '%s' is suspended, try to delete it.\n",
                             CoC[idx].task_name);
@@ -712,7 +655,7 @@ void ticp (ticpArgs* args)
                     pSM->com_sta.status[H_ADR_COC_STATUS + idx] = CONNECTION_NOK; /* mark connection status NOK */
                     pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = FALSE;    /* clear alive flag */
 
-                    if (0/*taskDelete(tidClient[idx])*/) {
+                    if (0/*taskDelete(clientContext[idx].tid)*/) {
                         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
                             errlogPrintf("ICP: suspended '%s' cannot be deleted.\n",
                                 CoC[idx].task_name);
@@ -724,8 +667,8 @@ void ticp (ticpArgs* args)
                                 CoC[idx].task_name);
                             epicsThreadSleep(DelayTicks50ms);
                         }
-                        clientRestart[idx] = TRUE;
-                        tidClient[idx] = 0;        /* clear client tid */
+                        clientContext[idx].restart = 1;
+                        clientContext[idx].tid = 0;        /* clear client tid */
                     }
                 }
             }
@@ -734,30 +677,26 @@ void ticp (ticpArgs* args)
         /* check is there clients to restart */
 
         for (idx =0;idx < MAX_COC;idx++) {    /* restart the clients having 'restart flag set */
-            if (clientRestart[idx]) {
+            if (clientContext[idx].restart) {
 
             /* !!!! It should be changed if several ticp can be started */
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     errlogPrintf("ICP: restarting '%s' task: IP='%s'.\n",
                         CoC[idx].task_name, CoC[idx].ip_adr);
-/*
-                CoC[idx].task_id = taskSpawn(CoC[idx].task_name, MED_PRI, 0, STACK_SIZE, tcpClient,(int)CoC[idx].ip_adr, SERVER_PORT_NUM,(int)pSM, idx);
-*/
-                CoC[idx].task_id = epicsThreadCreate(
+                clientContext[idx].tid = epicsThreadCreate(
                     CoC[idx].task_name,
                     MED_PRI,
                     STACK_SIZE,
                     (EPICSTHREADFUNC)tcpClient,
                     &clientContext[idx]);
 
-                tidClient[idx] = CoC[idx].task_id;
                 pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = TRUE;  /* set alive flag */
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     errlogPrintf("ICP: task %d restarted.\n", idx);
 
-                clientRestart[idx] = FALSE;    /* reset restart flag */
+                clientContext[idx].restart = 0;    /* reset restart flag */
             }
         }
     }
@@ -788,7 +727,7 @@ STATUS tcpClient (tcpClientContext* context)
     sm_layout* pSM   = context->pSM;
     int nr_coc       = context->nr_coc;
 
-    context->sock=-1;
+    context->sock=0;
     if (RemoteHeader) {
         /* bcopyWords(&pSM->sta_dwn[nr_coc].status[0],&sendBuf[0],(S_LEN)); */   /* copy the send header */
         memcpy(sendBuf, pSM->sta_dwn[nr_coc].status,(2*S_LEN));    /* copy the send header */
@@ -813,7 +752,9 @@ STATUS tcpClient (tcpClientContext* context)
 
     iRcvBlockCtr[nr_coc]=0;
 
-/*   taskDeleteHookAdd(cleanup);    */            /* install task shutdown cleanup routine */
+#ifdef __vxWorks
+    taskDeleteHookAdd(cleanup);            /* install task shutdown cleanup routine */
+#endif
 
     while (TRUE)                                        /* forever */
     {
@@ -831,6 +772,7 @@ STATUS tcpClient (tcpClientContext* context)
             {
                 errlogPrintf("ICP %d: FATAL ERROR! socket(AF_INET, SOCK_STREAM, 0) failed: %s\n",
                     nr_coc, strerror(errno));
+                context->sock = 0;
                 return -1;
             }
             if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -843,7 +785,7 @@ STATUS tcpClient (tcpClientContext* context)
                 if (close(context->sock))
                     errlogPrintf("ICP %d: close(%d) failed (ignored): %s\n",
                         nr_coc, context->sock, strerror(errno));
-                context->sock=-1;
+                context->sock=0;
                 epicsThreadSleep(RECONNECT_DELAY);
             }
             else
@@ -1037,7 +979,7 @@ STATUS tcpClient (tcpClientContext* context)
         if (close (context->sock) < 0)
             errlogPrintf("ICP %d: close(%d) failed (ignored): %s\n",
                 nr_coc, context->sock, strerror(errno));
-        context->sock=-1;
+        context->sock=0;
 
         /* wait some time (allow PLC to disconnect and get ready for new connection) */
         /* PLC drops connection after approx. 10 sec, so wait some longer time here */
@@ -1082,18 +1024,18 @@ BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc)
 // Description: wait for Rx data on socket or timeout
 // returncode:  0 if timeout; <0 if error; >0 if data
 //===========================================================================*/
-int wfTimeoutOrRxdata(int sockD, int nr_coc)
+int wfTimeoutOrRxdata(int sock, int nr_coc)
 {
     static struct timeval    to;
     int    iSelect;
     fd_set socklist;
 
     FD_ZERO(&socklist);
-    FD_SET(sockD,&socklist);
+    FD_SET(sock,&socklist);
     to.tv_sec=RECV_TIMEOUT;
     to.tv_usec=0;
     /* select returns when either the socket has data or the timeout elapsed */
-    if ((iSelect=select(sockD+1,&socklist, 0, 0,&to)) < 0)
+    if ((iSelect=select(sock+1,&socklist, 0, 0,&to)) < 0)
     {
         errlogPrintf("ICP %d: select() failed in wfTimeoutOrRxdata: %s\n",
             nr_coc, strerror(errno));
@@ -1227,7 +1169,7 @@ int establishConnection(int sock, char * serverIP, int serverPort)
 // (socket is not closed automatically when the task is killed; therefore do it explicitely here)
 // returncode:  none
 //===========================================================================*/
-#if 0
+#ifdef __vxworks
 int cleanup(WIND_TCB *pTcb)
 {
     int i;
@@ -1235,14 +1177,14 @@ int cleanup(WIND_TCB *pTcb)
     /* close the connection if any */
 
     for (i=0; i < MAX_COC; i++) {
-        if (pTcb == (WIND_TCB *)tidClient[i]) {
+        if (pTcb == (WIND_TCB *)clientContext[i].tid) {
         if (TICP_debug)
-            errlogPrintf("cleanup: tid = %x nr_coc = %d\n", pTcb, i);
+            errlogPrintf("cleanup: tid = %p nr_coc = %d\n", pTcb, i);
 
-            tidClient[i] = 0;        /* clear saved tid */
-            clientRestart[i] = TRUE;    /* set "restart client" flag */
-            if (sFd[i])
-                close(sFd[i]);    /* close connection */
+            clientContext[i].tid = 0;        /* clear saved tid */
+            clientContext[i].restart = 1;    /* set "restart client" flag */
+            if (clientContext[i].sock)
+                close(clientContext[i].sock);    /* close connection */
             break;
         }
     }
