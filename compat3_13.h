@@ -45,7 +45,7 @@
     taskSpawn(name, pri, VX_FP_TASK, stack, func, (int)(args), \
     0,0,0,0,0,0,0,0,0)
 
-#define epicsThreadSleep(sec) taskDelay(sec*sysClkRateGet())
+#define epicsThreadSleep(sec) taskDelay((sec)*sysClkRateGet())
 
 #define epicsThreadIsSuspended(t) (taskIdVerify(t) || taskIsSuspended(t))
 
