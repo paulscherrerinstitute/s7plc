@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.3 2005/02/14 16:39:44 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.4 2005/02/16 17:53:19 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,9 +33,9 @@
 #endif
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.3 2005/02/14 16:39:44 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.4 2005/02/16 17:53:19 zimoch Exp $";
 
-static long s7plcIoReport(); 
+static long s7plcIoReport(int level); 
 static long s7plcInit();
 
 struct {
@@ -91,17 +91,18 @@ void s7plcDebugLog(int level, const char *fmt, ...)
     va_end(args);
 }
 
-static long s7plcIoReport()
+static long s7plcIoReport(int level)
 {
     s7plcDevice *device;
     unsigned int i;
 
+    if (level == 2) return ticpReport();
     printf("%s", cvsid);
     printf("S7mem devices:\n");
     for (device = devices; device; device = device->next)
     {
         printf("  Device name: \"%s\"\n", device->name);
-        for (i = 0; i < device->numStations; i++)
+        if (level == 1) for (i = 0; i < device->numStations; i++)
         {
             printf("  Station %2d: %sconnected (%x)\n",
                 i, *device->station[i].connStatus ? "" : "dis", *device->station[i].connStatus);

@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/07 16:06:42 $ */
-/* $Id: ticp.h,v 1.1 2005/02/07 16:06:42 zimoch Exp $ */
+/* $Date: 2005/02/16 17:53:19 $ */
+/* $Id: ticp.h,v 1.2 2005/02/16 17:53:19 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.1 $ */
+/* $Revision: 1.2 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -199,4 +199,5 @@ void ICP_start(sm_layout* pSM,        /* allocated memory table */
                unsigned RepLev,       /* report level */
                char RemHead);         /* with/withou remote header */
                
+int ticpReport();
 #endif /* INCticph */
