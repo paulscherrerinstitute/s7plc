@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 15:38:24 $ */
-/* $Id: ticp.h,v 1.5 2005/02/28 15:38:24 zimoch Exp $ */
+/* $Date: 2005/03/01 16:40:49 $ */
+/* $Id: ticp.h,v 1.6 2005/03/01 16:40:49 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.5 $ */
+/* $Revision: 1.6 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -87,18 +87,11 @@
 
 #define SOCK_RECV_BUFFER_SIZE   8192  /* socket level receive buffer size [byte] */
 /* time constants */
-#define POLL_DELAY_10MS           10  /* poll delay [ms]*/
-#define POLL_DELAY_60MS           60  /* poll delay [ms]*/
-#define POLL_DELAY_500MS         500  /* poll delay [ms]*/
-#define POLL_DELAY_990MS         990  /* poll delay [ms]*/
-#define POLL_DELAY_1S           1000  /* poll delay [ms]*/
 #define RECV_TIMEOUT               5  /* receive timeout [s] */
 #define CONNECT_TIMEOUT            5  /* connect timeout [s] */
 #define RECONNECT_DELAY           20  /* delay before attempting reconnect [s] */
 
 /* address to header */
-#define ADR_HEAD_STATION           0  /* address head station */
-
 #define H_ADR_DATA_ID              0  /* address data id */                                                      
 #define H_ADR_STATION_LIST         1  /* address stationlist */                                                  
 #define H_ADR_OPT_COM              2  /* address communication optimization */                                   
@@ -108,10 +101,6 @@
 #define H_ADR_BEG_UP_BLEN         11  /* address block begin of: UP data block length, sector station 1..15  */  
 #define H_ADR_BEG_DWN_BLEN        31  /* address block begin of: DWN data block length, sector station 1..15  */ 
 #define H_LEN                     50  /* address data area ; head station header length */                       
-/* Kor: constants for new headers */
-#define H_ADR_PLC_ID               0  /* address PLC id */
-#define H_ADR_BYTE_CNT             1  /* address of byte counter */
-
 #define H_ADR_ALIVE_CTR            0  /* address alive_ctr */
 /* Korobov: added alive counter for all clients + 1 for ticp itself
 #define H_ADR_COC_STATUS        0x10 ***/    /* address begin area of communication status 0x10..0x1f */
@@ -167,14 +156,6 @@ typedef struct sm_ly {
 } sm_layout;
 
 /* Client task description table element */
-
-typedef struct dCoC {
-    char* task_name;       /* Task name */                           
-    char ip_adr[16];       /* PLC IP address */                      
-    short rdBlSize;        /* Read block size (in bytes) */          
-    short wrBlSize;        /* Write block size (in bytes) */         
-    short id;              /* PLC ID (last part of PLC IP address)*/
-} dCoC;
 
 void ICP_start(sm_layout* pSM);        /* allocated memory table */
                
