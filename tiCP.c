@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/03/01 16:42:32 $ */
-/* $Id: tiCP.c,v 1.10 2005/03/01 16:42:32 zimoch Exp $ */
+/* $Date: 2005/03/01 17:33:00 $ */
+/* $Id: tiCP.c,v 1.11 2005/03/01 17:33:00 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.10 $ */
+/* $Revision: 1.11 $ */
 
 
 /*=============================================================================
@@ -201,24 +201,27 @@ typedef struct {
     sm_layout* pSM;
 } ticpArgs;
 
-typedef struct {
+typedef struct TcpClient {
+    struct TcpClient* next; /* filled by lineParse */
+    int nr_coc;                    /* filled by lineParse */
+    char serverIP[20];             /* filled by lineParse */
+    int readSize;                  /* filled by lineParse */
+    int writeSize;                 /* filled by lineParse */
     char taskName[20];
-    char serverIP[20];
-    int serverPortin;
+    int serverPort;
     sm_layout* pSM;
-    int nr_coc;
     int sock;
     epicsThreadId tid;
     int restart;
-    int readSize;
-    int writeSize;
     int sendData;
     int readIndex;
-} tcpClientContext;
+} TcpClient;
+
+TcpClient* firstClient = NULL;
 
 /* run-time debugging printout switch */
 
-int TICP_debug = 1;
+int TICP_debug = 0;
 
 /*------------------------------------------*/
 /*=============================================================================
@@ -226,9 +229,8 @@ int TICP_debug = 1;
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.10 2005/03/01 16:42:32 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.11 2005/03/01 17:33:00 zimoch Exp $";
 
-static tcpClientContext clientContext [MAX_COC];
 static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv data */       
 
 /* delay ticks */
@@ -239,10 +241,6 @@ static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv dat
 #define DelayTicks990ms (0.99)         /* calculated Ticks for a wait of 990 [ms]*/
 #define DelayTicks1s    (1.00)         /* calculated Ticks for a wait of 1 [s]*/
 #define DelayTicks5s    (5.00)         /* calculated Ticks for a wait of 5 [s]*/
-
-/* header information */
-static int StationList;
-static unsigned  RConfCode;
 
 /* message information*/
 static BOOL sta_msg_out;                /*  status message output */
@@ -256,8 +254,8 @@ int     TICP_RepStation = 0;            /*  report channel */
 //===========================================================================*/
 void ICP_version();
 void ticp (ticpArgs* args);
-STATUS tcpClient (tcpClientContext* context);
-BOOL   copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc);
+STATUS tcpClient (TcpClient* client);
+BOOL   copyToRcvBlock(TcpClient* client, char * pRcvBuffer, sm_layout* pSM, int iSize);
 int    wfTimeoutOrRxdata(int sock, int nr_coc);
 int    establishConnection(int sock, char * serverIP, int setverPort);
 #ifdef __vxworks
@@ -265,8 +263,8 @@ int  cleanup(WIND_TCB *pTcb);
 #endif
 
 BOOL   sm_Init(sm_layout* pSM);                                   /* initialize up/dwn data buffer */
-BOOL   sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc);/* get block from down buffer */
-BOOL   sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc);/* put block to up buffer */
+BOOL   sm_BufGet(TcpClient* client, char* sendBuf, sm_layout* pSM);/* get block from down buffer */
+BOOL   sm_BufPut(TcpClient* client, char* recvBuf, sm_layout* pSM);/* put block to up buffer */
 void   ReadDownstream(sm_layout* pSM);
 
 void   UpstreamHeartbeat(sm_layout* pSM);
@@ -324,7 +322,7 @@ int lineParse(char *lineBuf, int line)
     char *rest = NULL, *pIPaddr;
     int indx, IP_part, i, leng, rdSize = 0, wrSize = 0;
     char IPaddr[16];
-    short id = -1;
+    TcpClient *client, **pclient; 
 
     if (TICP_debug)
         errlogPrintf("ticp: lineParse: line='%s'\n", lineBuf);
@@ -365,13 +363,12 @@ int lineParse(char *lineBuf, int line)
 
             /* IP address is valid */
 
-                id = IP_part,            /* store it as PLC id */
                 strncpy(IPaddr, pIPaddr, leng);    /* copy IP addr locally */
                 IPaddr[leng] = '\0';            /* terminate string */
 
                 if (TICP_debug)
-                    errlogPrintf("ticp: lineParse: local IPaddr = '%s' id = %d\n",
-                        IPaddr, id);
+                    errlogPrintf("ticp: lineParse: local IPaddr = '%s'\n",
+                        IPaddr);
 
             }
             else {
@@ -409,19 +406,20 @@ int lineParse(char *lineBuf, int line)
 
     /* Parsered OK, fill in the client table element */
 
-    if (indx) {                   /* rewrite RConfCode */
-        RConfCode |= 1 << indx;
-    }
-    else RConfCode |= 1;          /* If index = 0 */
-    strcpy(clientContext[indx].serverIP, IPaddr);  /* copy PLC IP address */
-    clientContext[indx].readSize = rdSize;      /* set read block size */
-    clientContext[indx].writeSize = wrSize;      /* set write block size */
-
+    client = (TcpClient*)
+        callocMustSucceed(1, sizeof(TcpClient), "lineParse");
+    
+    client->next = NULL;
+    client->nr_coc = indx;
+    strcpy(client->serverIP, IPaddr);  /* copy PLC IP address */
+    client->readSize = rdSize;         /* set read block size */
+    client->writeSize = wrSize;        /* set write block size */
+    for (pclient = &firstClient; *pclient; pclient = &(*pclient)->next);
+    *pclient = client;
+    
     if (TICP_debug)
-        errlogPrintf("lineParse: set: IP='%s' rdSize=%d wrSize=%d conf=0x%x\n",
-            clientContext[indx].serverIP,
-            clientContext[indx].readSize, clientContext[indx].writeSize,
-            RConfCode);
+        errlogPrintf("lineParse: set: IP='%s' rdSize=%d wrSize=%d\n",
+            client->serverIP,client->readSize, client->writeSize);
 
     return 0;
 }
@@ -434,7 +432,6 @@ int lineParse(char *lineBuf, int line)
 void ticp (ticpArgs* args)
 {
     sm_layout* pSM;            /* ptr to shared memory */
-    unsigned   ConfCodeMask;
     int        idx;
     int        tc;
 
@@ -444,8 +441,7 @@ void ticp (ticpArgs* args)
 
     char lineBuf[80];
     int IPind, line, nok;
-
-    RConfCode = args->ConfCode;    /* if there is config file it override ConfCode */
+    TcpClient* client;
 
     /* Try to get stations IP addresses from config file which name is
        defined in ICP_IP_ADDR_FILE_NAME Environment Variable */
@@ -457,7 +453,7 @@ void ticp (ticpArgs* args)
        strcpy(FileName, IPAddrEnv);
 
     fdConf = fopen(FileName, "r");
-    line = 1; RConfCode = 0;    /* RConfCode will be overwritten */
+    line = 1;
     if (fdConf) {            /* Parse the config file */
 
         IPind = 0;
@@ -482,12 +478,11 @@ void ticp (ticpArgs* args)
         exit(1);
     }
 
-    if (!RConfCode) {
+    if (!firstClient) {
         errlogPrintf("\nTICP: no valid PLC IP found in the configfile; task is stopped\n");
         exit(1);
     }
 
-    StationList     = 0;
     sta_msg_out     = 0;
     cmd_msg_out     = 1;
     
@@ -502,37 +497,30 @@ void ticp (ticpArgs* args)
     sm_Init(pSM);
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-        errlogPrintf("\nStarting tiCP ConfCode:%X\n", RConfCode);
+        errlogPrintf("\nStarting tiCP\n");
 
     /* check station_list and install communication tasks */
-    ConfCodeMask = 1;
-    StationList = RConfCode;
-    for (idx = 0;idx < MAX_COC;idx++)
+    for (client = firstClient; client; client=client->next)
     {
-        tcpClientContext* client = &clientContext[idx];
         client->sendData = (client->writeSize > 0);
 
-        if ((StationList & ConfCodeMask) != 0)
-        {
-            sprintf (client->taskName, "TcpClient %d", idx);
-            client->serverPortin = SERVER_PORT_NUM;
-            client->pSM = pSM;
-            client->nr_coc = idx;
-            client->sock = 0;
-            client->tid = epicsThreadCreate(
-                                    client->taskName,
-                                    MED_PRI,
-                                    STACK_SIZE,
-                                    (EPICSTHREADFUNC)tcpClient,
-                                    &clientContext[idx]);
-            pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = 1;    /* set alive flag */
+        idx = client->nr_coc;
+        sprintf (client->taskName, "TcpClient %d", client->nr_coc);
+        client->serverPort = SERVER_PORT_NUM;
+        client->pSM = pSM;
+        client->sock = 0;
+        client->tid = epicsThreadCreate(
+                                client->taskName,
+                                MED_PRI,
+                                STACK_SIZE,
+                                (EPICSTHREADFUNC)tcpClient,
+                                client);
+        pSM->com_sta.status[H_ADR_ALIVE_CTR + client->nr_coc + 1] = 1;    /* set alive flag */
 
-            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-            errlogPrintf("ICP: task %d started.\n", idx);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+        errlogPrintf("ICP: task %s started.\n", client->taskName);
 
-            epicsThreadSleep(DelayTicks5s);        /* delay for 5 sec */
-        }
-        ConfCodeMask = ConfCodeMask<<1;
+        epicsThreadSleep(DelayTicks5s);        /* delay for 5 sec */
     }
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -544,9 +532,8 @@ void ticp (ticpArgs* args)
         for(tc = 0;tc < 5;tc++)
         {
             UpstreamHeartbeat(pSM);
-            for (idx =0;idx < MAX_COC;idx++)
+            for (client = firstClient; client; client=client->next)
             {
-                tcpClientContext* client = &clientContext[idx];
                 if (client->writeSize)
                 { /* Set 1 only for those stations that
                     have send down data */
@@ -558,14 +545,13 @@ void ticp (ticpArgs* args)
 
         /* check whether all clients are running */
 
-        for (idx =0;idx < MAX_COC;idx++)
+        for (client = firstClient; client; client=client->next)
         {
-            tcpClientContext* client = &clientContext[idx];
             if (client->tid)
             {    /* only for existing clients */
                 if (TICP_debug)
                     errlogPrintf("ICP: idx=%d IP='%s'\n",
-                        idx, client->serverIP);
+                        client->nr_coc, client->serverIP);
 
                 if (epicsThreadIsSuspended(client->tid))
                 {    /* if suspended delete it */
@@ -578,8 +564,8 @@ void ticp (ticpArgs* args)
 
                     /* Mark the appropriate connection NOK & clear alive flag */
 
-                    pSM->com_sta.status[H_ADR_COC_STATUS + idx] = CONNECTION_NOK; /* mark connection status NOK */
-                    pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = 0;    /* clear alive flag */
+                    pSM->com_sta.status[H_ADR_COC_STATUS + client->nr_coc] = CONNECTION_NOK; /* mark connection status NOK */
+                    pSM->com_sta.status[H_ADR_ALIVE_CTR + client->nr_coc + 1] = 0;    /* clear alive flag */
 
 #ifdef __vxworks
                     if (taskDelete((int)client->tid))
@@ -604,9 +590,8 @@ void ticp (ticpArgs* args)
 
         /* check is there clients to restart */
 
-        for (idx =0;idx < MAX_COC;idx++)
+        for (client = firstClient; client; client=client->next)
         {    /* restart the clients having restart flag set */
-            tcpClientContext* client = &clientContext[idx];
             if (client->restart)
             {
             /* !!!! It should be changed if several ticp can be started */
@@ -619,12 +604,12 @@ void ticp (ticpArgs* args)
                     MED_PRI,
                     STACK_SIZE,
                     (EPICSTHREADFUNC)tcpClient,
-                    &clientContext[idx]);
+                    client);
 
-                pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = 1;  /* set alive flag */
+                pSM->com_sta.status[H_ADR_ALIVE_CTR + client->nr_coc + 1] = 1;  /* set alive flag */
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                    errlogPrintf("ICP: task %d restarted.\n", idx);
+                    errlogPrintf("ICP: task %d restarted.\n", client->nr_coc);
 
                 client->restart = 0;    /* reset restart flag */
             }
@@ -637,31 +622,30 @@ void ticp (ticpArgs* args)
 // Siemens S7 PLC
 //===========================================================================*/
 
-STATUS tcpClient (tcpClientContext* context)
+STATUS tcpClient (TcpClient* client)
 {
     char   sendBuf[2*(MAX_DWN_BUF_SIZE+1)];    /* send buffer */
     struct sockaddr_in clientAddr;        /* clients socket address */
     char   recvBuf[2*(MAX_UP_BUF_SIZE+1)];        /* receive buffer */
-    int    serverPort=SERVER_PORT_NUM;
     int    idx;
 
-    char *serverIP   = context->serverIP;
-    int serverPortin = context->serverPortin;
-    sm_layout* pSM   = context->pSM;
-    int nr_coc       = context->nr_coc;
+    char *serverIP   = client->serverIP;
+    int serverPort = client->serverPort;
+    sm_layout* pSM   = client->pSM;
+    int nr_coc       = client->nr_coc;
 
-    context->sock=0;
+    client->sock=0;
     for (idx=0;idx<2*MAX_DWN_BUF_SIZE;idx++) {
         sendBuf[idx]=0x00;
     }
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         errlogPrintf("\nICP %d: Starting TcpClient. Server: %s:%i\n",
-            nr_coc, serverIP, serverPortin);
-    if (serverPortin==0)
+            nr_coc, serverIP, serverPort);
+    if (serverPort==0)
         serverPort=SERVER_PORT_NUM;            /* default */
     else
-        serverPort=serverPortin;
+        serverPort=serverPort;
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         errlogPrintf("ICP %d: using Server Port %i\n", nr_coc, serverPort);
 
@@ -677,28 +661,28 @@ STATUS tcpClient (tcpClientContext* context)
         int iCommLoop = 0;
 
         /* establish connection with server */
-        context->readIndex = 0;
+        client->readIndex = 0;
         do
         {
             /* create client socket */
-            if ((context->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            if ((client->sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             {
                 errlogPrintf("ICP %d: FATAL ERROR! socket(AF_INET, SOCK_STREAM, 0) failed: %s\n",
                     nr_coc, strerror(errno));
-                context->sock = 0;
+                client->sock = 0;
                 return -1;
             }
             if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP %d: Connect to %s:%d on socket %d # %i...\n",
-                    nr_coc, serverIP, serverPort, context->sock, iConnectLoop);
-            if (establishConnection(context->sock, serverIP, serverPort) < 0)
+                    nr_coc, serverIP, serverPort, client->sock, iConnectLoop);
+            if (establishConnection(client->sock, serverIP, serverPort) < 0)
             {
                 errlogPrintf("ICP %d: connect(%d, %s:%d) failed: %s. Retry in %d seconds\n",
-                    nr_coc, context->sock, serverIP, serverPort, strerror(errno), RECONNECT_DELAY);
-                if (close(context->sock))
+                    nr_coc, client->sock, serverIP, serverPort, strerror(errno), RECONNECT_DELAY);
+                if (close(client->sock))
                     errlogPrintf("ICP %d: close(%d) failed (ignored): %s\n",
-                        nr_coc, context->sock, strerror(errno));
-                context->sock=0;
+                        nr_coc, client->sock, strerror(errno));
+                client->sock=0;
                 epicsThreadSleep(RECONNECT_DELAY);
             }
             else
@@ -706,17 +690,17 @@ STATUS tcpClient (tcpClientContext* context)
                 connectionOk=1;
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     errlogPrintf("ICP %d: connected fd %d to %s:%d\n",
-                        nr_coc, context->sock, serverIP, serverPort);
+                        nr_coc, client->sock, serverIP, serverPort);
             }
             iConnectLoop++;
         } while (!connectionOk);
 
         /***** connection with server established; do data transfer *****/
 
-        if (getsockname(context->sock, (struct sockaddr *)&clientAddr, &len) < 0)
+        if (getsockname(client->sock, (struct sockaddr *)&clientAddr, &len) < 0)
         {
             errlogPrintf("ICP %d: getsockname(%d,...) failed: %s\n",
-                nr_coc, context->sock, strerror(errno));
+                nr_coc, client->sock, strerror(errno));
         }
         else
         {
@@ -737,15 +721,15 @@ STATUS tcpClient (tcpClientContext* context)
             int iRC;
 
             /* check: time for send new down data block ? */
-            if (context->sendData)
+            if (client->sendData)
             {
 
-                context->sendData = 0;
+                client->sendData = 0;
 
                 /* block the corresponding area of SM */
                 epicsMutexMustLock(pSM->semID_dwn[nr_coc]);
 
-                sm_BufGet(sendBuf, pSM, nr_coc);
+                sm_BufGet(client, sendBuf, pSM);
 
                 /* unblock the corresponding area of SM */
                 epicsMutexUnlock(pSM->semID_dwn[nr_coc]);
@@ -755,10 +739,10 @@ STATUS tcpClient (tcpClientContext* context)
                     errlogPrintf("ICP %d: Message #%i to send: \n",
                         nr_coc, iCommLoop);
 
-                if ((iNumWritten=send(context->sock, sendBuf, (context->writeSize), 0)) < 0)
+                if ((iNumWritten=send(client->sock, sendBuf, (client->writeSize), 0)) < 0)
                 {
                     errlogPrintf("ICP %d: send(%d, ..., %d, 0) failed: %s\n",
-                        nr_coc, context->sock, context->writeSize, strerror(errno));
+                        nr_coc, client->sock, client->writeSize, strerror(errno));
                     break;            /* exit the send/receive loop */
                 }
                 if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
@@ -768,7 +752,7 @@ STATUS tcpClient (tcpClientContext* context)
 
             /* check (with timeout) for data arrival from server */
 
-            iRC=wfTimeoutOrRxdata(context->sock, nr_coc);
+            iRC=wfTimeoutOrRxdata(client->sock, nr_coc);
             if (iRC <= 0)
             { /* error or no data within timeout timeframe */
                 errlogPrintf("ICP %d: wfTimeoutOrRxdata failed: %s\n",
@@ -777,11 +761,11 @@ STATUS tcpClient (tcpClientContext* context)
             }
             /* data available; read data from server (S7) */
 
-            if ((iNumRead=recv(context->sock, recvBuf, context->readSize, 0)) < 0)
+            if ((iNumRead=recv(client->sock, recvBuf, client->readSize, 0)) < 0)
             {
                 errlogPrintf("ICP %d: recv(%d, ..., %d, 0) failed: %s\n",
-                    nr_coc, context->sock,
-                    context->readSize, strerror(errno));
+                    nr_coc, client->sock,
+                    client->readSize, strerror(errno));
                 break;            /* exit the send/receive loop */
             }
             if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
@@ -795,7 +779,7 @@ STATUS tcpClient (tcpClientContext* context)
 
                 /* copy received data to data block */
 
-                if (copyToRcvBlock(recvBuf, pSM, iNumRead, nr_coc))
+                if (copyToRcvBlock(client, recvBuf, pSM, iNumRead))
                 {
                     /* block end reached ? sync end message block */
                     if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
@@ -825,13 +809,13 @@ STATUS tcpClient (tcpClientContext* context)
             errlogPrintf("ICP %d: connection not ok; shut it down and retry in %d seconds\n",
                 nr_coc, RECONNECT_DELAY);
         pSM->com_sta.status[H_ADR_COC_STATUS + nr_coc] = CONNECTION_NOK;
-        if (shutdown(context->sock, 2) < 0)
+        if (shutdown(client->sock, 2) < 0)
             errlogPrintf("ICP %d: shutdown(%d, 2) failed (ignored): %s\n",
-                nr_coc, context->sock, strerror(errno));
-        if (close (context->sock) < 0)
+                nr_coc, client->sock, strerror(errno));
+        if (close (client->sock) < 0)
             errlogPrintf("ICP %d: close(%d) failed (ignored): %s\n",
-                nr_coc, context->sock, strerror(errno));
-        context->sock=0;
+                nr_coc, client->sock, strerror(errno));
+        client->sock=0;
 
         /* wait some time (allow PLC to disconnect and get ready for new connection) */
         /* PLC drops connection after approx. 10 sec, so wait some longer time here */
@@ -851,7 +835,7 @@ STATUS tcpClient (tcpClientContext* context)
 // Description: copy an entire data block from the internal buffer to the receive block
 // returncode:  none
 //===========================================================================*/
-BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc)
+BOOL copyToRcvBlock(TcpClient* client, char * pRcvBuffer, sm_layout* pSM, int iSize)
 {
     int i;
     BOOL block_finished = 0;
@@ -859,11 +843,12 @@ BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc)
     /* copy all received data in block */
     for (i=0; i<iSize; i++) {
         /* copy to shared memory */
-        rcvBlock[nr_coc][clientContext[nr_coc].readIndex]=*pRcvBuffer;
+        rcvBlock[client->nr_coc][client->readIndex]=*pRcvBuffer;
         pRcvBuffer++;                        /* next received byte */
-        clientContext[nr_coc].readIndex=(clientContext[nr_coc].readIndex+1) % (clientContext[nr_coc].readSize);    /* next entry */
-        if (clientContext[nr_coc].readIndex==0) {        /* block end reached */
-            while (!sm_BufPut(rcvBlock[nr_coc], pSM, nr_coc));
+        client->readIndex=(client->readIndex+1) % (client->readSize);    /* next entry */
+        if (client->readIndex==0)
+        {        /* block end reached */
+            while (!sm_BufPut(client, rcvBlock[client->nr_coc], pSM));
             block_finished = 1;
         }
     }
@@ -1029,19 +1014,21 @@ int establishConnection(int sock, char * serverIP, int serverPort)
 #ifdef __vxworks
 int cleanup(WIND_TCB *pTcb)
 {
-    int i;
+    TcpClient* client;
 
     /* close the connection if any */
+    for (client = firstClient; client; client=client->next)
+    {
+        if (pTcb == (WIND_TCB *)client->tid)
+        {
+            if (TICP_debug)
+                errlogPrintf("cleanup: tid = %p nr_coc = %d\n",
+                    pTcb, client->nr_coc);
 
-    for (i=0; i < MAX_COC; i++) {
-        if (pTcb == (WIND_TCB *)clientContext[i].tid) {
-        if (TICP_debug)
-            errlogPrintf("cleanup: tid = %p nr_coc = %d\n", pTcb, i);
-
-            clientContext[i].tid = 0;        /* clear saved tid */
-            clientContext[i].restart = 1;    /* set "restart client" flag */
-            if (clientContext[i].sock)
-                close(clientContext[i].sock);    /* close connection */
+            client->tid = 0;        /* clear saved tid */
+            client->restart = 1;    /* set "restart client" flag */
+            if (client->sock)
+                close(client->sock);    /* close connection */
             break;
         }
     }
@@ -1077,17 +1064,17 @@ BOOL sm_Init(sm_layout* pSM)
 // Description:     get block from down buffer
 //===========================================================================*/
 
-BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
+BOOL sm_BufGet(TcpClient* client, char* sendBuf, sm_layout* pSM)
 {
+    int nr_coc = client->nr_coc;
 
     /* copy to A32 slave memory */
-
 /*  bcopyBytes((char *)pSM->buf_dwn[nr_coc].data, sendBuf,(block_length_dwn[nr_coc])); */
-    memcpy(sendBuf, pSM->buf_dwn[nr_coc].data, clientContext[nr_coc].writeSize);
+    memcpy(sendBuf, pSM->buf_dwn[nr_coc].data, client->writeSize);
     if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("ICP %d: DWN: length: %d\n",
-                nr_coc, clientContext[nr_coc].writeSize);
+                nr_coc, client->writeSize);
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -1117,18 +1104,19 @@ BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
 // Function:        sm_BufPut
 // Description:     put block to up buffer
 //===========================================================================*/
-BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
+BOOL sm_BufPut(TcpClient* client, char* recvBuf, sm_layout* pSM)
 {
+    int nr_coc = client->nr_coc;
 
     /* copy to A32 slave memory */
 
 /*  bcopyBytes(recvBuf,(char *)pSM->buf_up[nr_coc].data, block_length_up[nr_coc]); */
-    memcpy(pSM->buf_up[nr_coc].data, recvBuf, clientContext[nr_coc].readSize);
+    memcpy(pSM->buf_up[nr_coc].data, recvBuf, client->readSize);
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("ICP %d: UP: length: %d\n",
-        nr_coc, clientContext[nr_coc].readSize);
+        nr_coc, client->readSize);
 
         if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
             errlogPrintf("ICP %d: sm_BufPut::com_status::alive_ctr: %4d\n",
@@ -1221,14 +1209,13 @@ BOOL chk_msg_sta(int bsync, int nr_coc, short int rep_lev)
 }
 
 int ticpReport()
-{
-    int  nr_coc;
+{    
+    TcpClient* client;
     
-    printf ("ticp serves max %d stations:\n", MAX_COC); 
-    for (nr_coc = 0; nr_coc < MAX_COC; nr_coc++)
+    for (client = firstClient; client; client=client->next)
     {
-        printf ("  %d: fd=%d\n",
-            nr_coc, clientContext[nr_coc].sock);
+        printf ("  %d: server=%s:%d, fd=%d\n",
+            client->nr_coc, client->serverIP, client->serverPort, client->sock);
     }
     return 0;
 }

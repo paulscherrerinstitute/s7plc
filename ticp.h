@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/03/01 16:40:49 $ */
-/* $Id: ticp.h,v 1.6 2005/03/01 16:40:49 zimoch Exp $ */
+/* $Date: 2005/03/01 17:33:01 $ */
+/* $Id: ticp.h,v 1.7 2005/03/01 17:33:01 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.6 $ */
+/* $Revision: 1.7 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -53,6 +53,7 @@
 #include <epicsMutex.h>
 #include <epicsThread.h>
 #include <epicsTypes.h>
+#include <cantProceed.h>
 #endif
 
 /* defines */
