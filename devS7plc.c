@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/02/14 16:39:08 $ */
-/* $Id: devS7plc.c,v 1.2 2005/02/14 16:39:08 zimoch Exp $ */
+/* $Date: 2005/03/11 08:35:26 $ */
+/* $Id: devS7plc.c,v 1.3 2005/03/11 08:35:26 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.2 $ */
+/* $Revision: 1.3 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -31,7 +31,6 @@
 #include <epicsVersion.h>
 
 #include <drvS7plc.h>
-#include <ticp.h>
 
 #if (EPICS_REVISION<14)
 /* R3.13 */
@@ -40,6 +39,10 @@
 /* R3.14 */
 #include <cantProceed.h>
 #include <epicsExport.h>
+#endif
+
+#ifndef __GNUC__
+#define __extension__
 #endif
 
 #define S7MEM_TIME 100
@@ -55,11 +58,13 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.2 2005/02/14 16:39:08 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.3 2005/03/11 08:35:26 zimoch Exp $";
 
-static long s7plcReport();
+STATIC long s7plcReport();
 
-static int ioParse(char* recordName, char *parameters, S7memPrivate_t *);
+STATIC int s7plcIoParse(char* recordName, char *parameters, S7memPrivate_t *);
+STATIC long s7plcGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
+STATIC long s7plcGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
 
 struct devsup {
     long      number;
@@ -72,8 +77,8 @@ struct devsup {
 
 /* bi for status bit ************************************************/
 
-static long s7plcInitRecordStat(biRecord *);
-static long s7plcReadStat(biRecord *);
+STATIC long s7plcInitRecordStat(biRecord *);
+STATIC long s7plcReadStat(biRecord *);
 
 struct devsup s7plcStat =
 {
@@ -81,7 +86,7 @@ struct devsup s7plcStat =
     NULL,
     NULL,
     s7plcInitRecordStat,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadStat
 };
 
@@ -89,8 +94,8 @@ epicsExportAddress(dset, s7plcStat);
 
 /* bi ***************************************************************/
 
-static long s7plcInitRecordBi(biRecord *);
-static long s7plcReadBi(biRecord *);
+STATIC long s7plcInitRecordBi(biRecord *);
+STATIC long s7plcReadBi(biRecord *);
 
 struct devsup s7plcBi =
 {
@@ -98,7 +103,7 @@ struct devsup s7plcBi =
     NULL,
     NULL,
     s7plcInitRecordBi,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadBi
 };
 
@@ -106,8 +111,8 @@ epicsExportAddress(dset, s7plcBi);
 
 /* bo ***************************************************************/
 
-static long s7plcInitRecordBo(boRecord *);
-static long s7plcWriteBo(boRecord *);
+STATIC long s7plcInitRecordBo(boRecord *);
+STATIC long s7plcWriteBo(boRecord *);
 
 struct devsup s7plcBo =
 {
@@ -115,7 +120,7 @@ struct devsup s7plcBo =
     NULL,
     NULL,
     s7plcInitRecordBo,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteBo
 };
 
@@ -123,8 +128,8 @@ epicsExportAddress(dset, s7plcBo);
 
 /* mbbi *************************************************************/
 
-static long s7plcInitRecordMbbi(mbbiRecord *);
-static long s7plcReadMbbi(mbbiRecord *);
+STATIC long s7plcInitRecordMbbi(mbbiRecord *);
+STATIC long s7plcReadMbbi(mbbiRecord *);
 
 struct devsup s7plcMbbi =
 {
@@ -132,7 +137,7 @@ struct devsup s7plcMbbi =
     NULL,
     NULL,
     s7plcInitRecordMbbi,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadMbbi
 };
 
@@ -140,8 +145,8 @@ epicsExportAddress(dset, s7plcMbbi);
 
 /* mbbo *************************************************************/
 
-static long s7plcInitRecordMbbo(mbboRecord *);
-static long s7plcWriteMbbo(mbboRecord *);
+STATIC long s7plcInitRecordMbbo(mbboRecord *);
+STATIC long s7plcWriteMbbo(mbboRecord *);
 
 struct devsup s7plcMbbo =
 {
@@ -149,7 +154,7 @@ struct devsup s7plcMbbo =
     NULL,
     NULL,
     s7plcInitRecordMbbo,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteMbbo
 };
 
@@ -157,8 +162,8 @@ epicsExportAddress(dset, s7plcMbbo);
 
 /* mbbiDirect *******************************************************/
 
-static long s7plcInitRecordMbbiDirect(mbbiDirectRecord *);
-static long s7plcReadMbbiDirect(mbbiDirectRecord *);
+STATIC long s7plcInitRecordMbbiDirect(mbbiDirectRecord *);
+STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *);
 
 struct devsup s7plcMbbiDirect =
 {
@@ -166,7 +171,7 @@ struct devsup s7plcMbbiDirect =
     s7plcReport,
     NULL,
     s7plcInitRecordMbbiDirect,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadMbbiDirect
 };
 
@@ -174,8 +179,8 @@ epicsExportAddress(dset, s7plcMbbiDirect);
 
 /* mbboDirect *******************************************************/
 
-static long s7plcInitRecordMbboDirect(mbboDirectRecord *);
-static long s7plcWriteMbboDirect(mbboDirectRecord *);
+STATIC long s7plcInitRecordMbboDirect(mbboDirectRecord *);
+STATIC long s7plcWriteMbboDirect(mbboDirectRecord *);
 
 struct devsup s7plcMbboDirect =
 {
@@ -183,7 +188,7 @@ struct devsup s7plcMbboDirect =
     NULL,
     NULL,
     s7plcInitRecordMbboDirect,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteMbboDirect
 };
 
@@ -191,8 +196,8 @@ epicsExportAddress(dset, s7plcMbboDirect);
 
 /* longin ***********************************************************/
 
-static long s7plcInitRecordLongin(longinRecord *);
-static long s7plcReadLongin(longinRecord *);
+STATIC long s7plcInitRecordLongin(longinRecord *);
+STATIC long s7plcReadLongin(longinRecord *);
 
 struct devsup s7plcLongin =
 {
@@ -200,7 +205,7 @@ struct devsup s7plcLongin =
     NULL,
     NULL,
     s7plcInitRecordLongin,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadLongin
 };
 
@@ -208,8 +213,8 @@ epicsExportAddress(dset, s7plcLongin);
 
 /* longout **********************************************************/
 
-static long s7plcInitRecordLongout(longoutRecord *);
-static long s7plcWriteLongout(longoutRecord *);
+STATIC long s7plcInitRecordLongout(longoutRecord *);
+STATIC long s7plcWriteLongout(longoutRecord *);
 
 struct devsup s7plcLongout =
 {
@@ -217,7 +222,7 @@ struct devsup s7plcLongout =
     NULL,
     NULL,
     s7plcInitRecordLongout,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteLongout
 };
 
@@ -225,9 +230,9 @@ epicsExportAddress(dset, s7plcLongout);
 
 /* ai ***************************************************************/
 
-static long s7plcInitRecordAi(aiRecord *);
-static long s7plcReadAi(aiRecord *);
-static long s7plcSpecialLinconvAi(aiRecord *, int after);
+STATIC long s7plcInitRecordAi(aiRecord *);
+STATIC long s7plcReadAi(aiRecord *);
+STATIC long s7plcSpecialLinconvAi(aiRecord *, int after);
 
 struct {
     long      number;
@@ -243,7 +248,7 @@ struct {
     NULL,
     NULL,
     s7plcInitRecordAi,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadAi,
     s7plcSpecialLinconvAi
 };
@@ -252,9 +257,9 @@ epicsExportAddress(dset, s7plcAi);
 
 /* ao ***************************************************************/
 
-static long s7plcInitRecordAo(aoRecord *);
-static long s7plcWriteAo(aoRecord *);
-static long s7plcSpecialLinconvAo(aoRecord *, int after);
+STATIC long s7plcInitRecordAo(aoRecord *);
+STATIC long s7plcWriteAo(aoRecord *);
+STATIC long s7plcSpecialLinconvAo(aoRecord *, int after);
 
 struct {
     long      number;
@@ -270,7 +275,7 @@ struct {
     NULL,
     NULL,
     s7plcInitRecordAo,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteAo,
     s7plcSpecialLinconvAo
 };
@@ -279,8 +284,8 @@ epicsExportAddress(dset, s7plcAo);
 
 /* stringin *********************************************************/
 
-static long s7plcInitRecordStringin(stringinRecord *);
-static long s7plcReadStringin(stringinRecord *);
+STATIC long s7plcInitRecordStringin(stringinRecord *);
+STATIC long s7plcReadStringin(stringinRecord *);
 
 struct devsup s7plcStringin =
 {
@@ -288,7 +293,7 @@ struct devsup s7plcStringin =
     NULL,
     NULL,
     s7plcInitRecordStringin,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadStringin
 };
 
@@ -296,8 +301,8 @@ epicsExportAddress(dset, s7plcStringin);
 
 /* stringout ********************************************************/
 
-static long s7plcInitRecordStringout(stringoutRecord *);
-static long s7plcWriteStringout(stringoutRecord *);
+STATIC long s7plcInitRecordStringout(stringoutRecord *);
+STATIC long s7plcWriteStringout(stringoutRecord *);
 
 struct devsup s7plcStringout =
 {
@@ -305,7 +310,7 @@ struct devsup s7plcStringout =
     NULL,
     NULL,
     s7plcInitRecordStringout,
-    NULL,
+    s7plcGetOutIntInfo,
     s7plcWriteStringout
 };
 
@@ -313,8 +318,8 @@ epicsExportAddress(dset, s7plcStringout);
 
 /* waveform *********************************************************/
 
-static long s7plcInitRecordWaveform(waveformRecord *);
-static long s7plcReadWaveform(waveformRecord *);
+STATIC long s7plcInitRecordWaveform(waveformRecord *);
+STATIC long s7plcReadWaveform(waveformRecord *);
 
 struct devsup s7plcWaveform =
 {
@@ -322,7 +327,7 @@ struct devsup s7plcWaveform =
     NULL,
     NULL,
     s7plcInitRecordWaveform,
-    NULL,
+    s7plcGetInIntInfo,
     s7plcReadWaveform
 };
 
@@ -330,63 +335,118 @@ epicsExportAddress(dset, s7plcWaveform);
 
 /*********  Report routine ********************************************/
 
-static long s7plcReport()
+STATIC long s7plcReport()
 {
    printf("devS7mem version: %s\n", cvsid_devS7plc);
    return 0;
+}
+
+/*********  Support for "I/O Intr" for input records ******************/
+
+STATIC long s7plcGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
+{
+    S7memPrivate_t* p = record->dpvt;
+    if (p == NULL)
+    {
+        recGblRecordError(S_db_badField, record,
+            "s7plcGetInIntInfo: uninitialized record");
+        return -1;
+    }
+    *ppvt = s7plcGetInScanPvt(p->station);
+    return 0;
+}
+
+/*********  Support for "I/O Intr" for output records ****************/
+
+STATIC long s7plcGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
+{
+    S7memPrivate_t* p = record->dpvt;
+    if (p == NULL)
+    {
+        recGblRecordError(S_db_badField, record,
+            "s7plcGetInIntInfo: uninitialized record");
+        return -1;
+    }
+    *ppvt = s7plcGetOutScanPvt(p->station);
+    return 0;
 }
 
 /***********************************************************************
  *   Routine to parse IO arguments
  *   IO address line format:
  *
- *        devName:N/I[+O] [T=<datatype>] [B=<bitnumber>] [L=<hwLow|strLen>] [H=<hwHigh>]
+ *    <devName>/<a>[+<o>] [T=<datatype>] [B=<bitnumber>] [L=<hwLow|strLen>] [H=<hwHigh>]
  *
- *   where: devName - symbolic device name
- *            N - station number (0-15)
- *            I - offset within station memory (in bytes)
- *            O - added to get final offset (I+O < 1024)
- *            params    - parameters to be passed to a particular
+ *   where: <devName>   - symbolic device name
+ *          <a+o>       - address (byte number) within memory block
+ *          <params>    - parameters to be passed to a particular
  *                        devSup parsering routine
- *            datatype  - INT8,INT16,INT32,UNSIGN16,UNSIGN32,
- *                        FLOAT,DOUBLE,STRING,TIME
- *            bitnumber - least significant bit is 0
- *            hwLow     - raw value that mapps to EGUL
- *            hwHigh    - raw value that mapps to EGUF
+ *          <datatype>  - INT8, INT16, INT32,
+ *                        UINT16 (or UNSIGN16), UINT32 (or UNSIGN32),
+ *                        REAL32 (or FLOAT), REAL64 (or DOUBLE),
+ *                        STRING,TIME
+ *          <bitnumber> - least significant bit is 0
+ *          <hwLow>     - raw value that mapps to EGUL
+ *          <hwHigh>    - raw value that mapps to EGUF
  **********************************************************************/
 
-static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
+STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
 {
-    char devName[MAX_DEVNAME_SIZE + 1];
+    char devName[255];
     char *p = par, separator;
-    int nchar;
-    unsigned int stationNumber;
+    int nchar, i;
     int status = 0;
 
+    struct {char* name; int dlen; epicsType type;} datatypes [] =
+    {
+        { "INT8",     1, epicsInt8T   },
+        
+        { "UINT8",    1, epicsUInt8T  },
+        { "UNSIGN8",  1, epicsUInt8T  },
+        { "BYTE",     1, epicsUInt8T  },
+        { "CHAR",     1, epicsUInt8T  },
+        
+        { "INT16",    2, epicsInt16T  },
+        { "SHORT",    2, epicsInt16T  },
+        
+        { "UINT16",   2, epicsUInt16T },
+        { "UNSIGN16", 2, epicsUInt16T },
+        { "WORD",     2, epicsUInt16T },
+        
+        { "INT32",    4, epicsInt32T  },
+        { "LONG",     4, epicsInt32T  },
+        
+        { "UINT32",   4, epicsUInt32T },
+        { "UNSIGN32", 4, epicsUInt32T },
+        { "DWORD",    4, epicsUInt32T },
+
+        { "REAL32",   4, epicsFloat32T },
+        { "FLOAT32",  4, epicsFloat32T },
+        { "FLOAT",    4, epicsFloat32T },
+
+        { "REAL64",   8, epicsFloat64T },
+        { "FLOAT64",  8, epicsFloat64T },
+        { "DOUBLE",   8, epicsFloat64T },
+
+        { "TIME",     1, S7MEM_TIME }
+    };
+
     /* Get rid of leading whitespace and non-alphanumeric chars */
-    while (!isalnum((unsigned char)*p)) if (*p++ == '\0') return S_drv_badParam;
+    while (!isalnum((unsigned char)*p))
+        if (*p++ == '\0') return S_drv_badParam;
 
     /* Get device name */
-    nchar = strcspn(p, ":");
-    if (nchar > MAX_DEVNAME_SIZE)
-    {
-        errlogSevPrintf(errlogFatal, "ioParse %s: device name too long\n",
-            recordName);
-        return S_drv_badParam;
-    }
+    nchar = strcspn(p, "/");
     strncpy(devName, p, nchar);
     devName[nchar] = '\0';
-    p += nchar + 1;
-
-    /* Get station number */
-    stationNumber = strtol(p, &p, 0);
+    p += nchar;
     separator = *p++;
-    s7plcDebugLog(1, "ioParse %s: station=%d\n", recordName, stationNumber);
+    s7plcDebugLog(1, "s7plcIoParse %s: station=%s\n", recordName, devName);
 
-    priv->station = s7plcOpen(devName, stationNumber);
+    priv->station = s7plcOpen(devName);
     if (!priv->station)
     {
-        errlogSevPrintf(errlogFatal, "ioParse %s: device not found\n",
+        errlogSevPrintf(errlogFatal, "s7plcIoParse %s: device not found\n",
             recordName);
         return S_drv_noDevice;
     }
@@ -396,7 +456,7 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
     {
         priv->st_offs = strtol(p, &p, 0);
         separator = *p++;
-        /* Handle any number of optional +<n> additions to the st_offs */
+        /* Handle any number of optional +o additions to the st_offs */
         while (separator == '+')
         {
             priv->st_offs += strtol(p, &p, 0);
@@ -408,8 +468,19 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
         priv->st_offs = 0;
     }
 
-    s7plcDebugLog(1, "ioParse %s: st_offs=%d\n", recordName, priv->st_offs);
+    s7plcDebugLog(1,
+        "s7plcIoParse %s: st_offs=%d\n", recordName, priv->st_offs);
 
+    /* set default values for parameters */
+    if (!priv->dtype && !priv->dlen)
+    {
+        priv->dtype = epicsInt16T;
+        priv->dlen = 2;
+    }
+    priv->bit = 0;
+    priv->hwLow = 0;
+    priv->hwHigh = 0;
+    
     /* allow whitespaces before parameter for device support */
     while ((separator == '\t') || (separator == ' '))
         separator = *p++;
@@ -418,16 +489,7 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
     nchar = 0;
     if (separator != '\'') p--; /* quote is optional*/
     
-    if (!priv->dtype && !priv->dlen)
-    {
-        /* set default data type */
-        priv->dtype = epicsInt16T;
-        priv->dlen = 2;
-    }
-    priv->bit = 0;
-    priv->hwLow = 0;
-    priv->hwHigh = 0;
-    
+    /* parse parameters */
     while (p && *p)
     {
         switch (*p)
@@ -438,112 +500,45 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
                 break;
             case 'T': /* T=<datatype> */
                 p+=2; 
-                if (strncmp(p,"INT8",4) == 0)
-                { 
-                    priv->dtype = epicsInt8T;
-                    priv->dlen = 1;
-                    p += 4; 
-                }
-                else
-                if (strncmp(p,"UINT8",5) == 0)
-                { 
-                    priv->dtype = epicsUInt8T;
-                    priv->dlen = 1;
-                    p += 5; 
-                }
-                else
-                if (strncmp(p,"UNSIGN8",7) == 0)
-                { 
-                    priv->dtype = epicsUInt8T;
-                    priv->dlen = 1;
-                    p += 7; 
-                }
-                else
-                if (strncmp(p,"INT16",5) == 0)
-                {
-                    priv->dtype = epicsInt16T;
-                    priv->dlen = 2; 
-                    p += 5;
-                }
-                else
-                if (strncmp(p,"UINT16",6) == 0)
-                {
-                    priv->dtype = epicsUInt16T;
-                    priv->dlen = 2;
-                    p += 6;
-                }
-                else
-                if (strncmp(p,"UNSIGN16",8) == 0)
-                {
-                    priv->dtype = epicsUInt16T;
-                    priv->dlen = 2;
-                    p += 8;
-                }
-                else
-                if (strncmp(p,"INT32",5) == 0)
-                {
-                    priv->dtype = epicsInt32T;
-                    priv->dlen = 4;
-                    p += 5;
-                }
-                else
-                if (strncmp(p,"UINT32",6) == 0)
-                {
-                    priv->dtype = epicsUInt32T;
-                    priv->dlen = 4;
-                    p += 6;
-                }
-                else
-                if (strncmp(p,"UNSIGN32",8) == 0)
-                {
-                    priv->dtype = epicsUInt32T;
-                    priv->dlen = 4;
-                    p += 8;
-                }
-                else
-                if (strncmp(p,"FLOAT",5) == 0)
-                {
-                    priv->dtype = epicsFloat32T;
-                    priv->dlen = 4;
-                    p += 5;
-                }
-                else
-                if (strncmp(p,"DOUBLE",6) == 0)
-                {
-                    priv->dtype = epicsFloat64T;
-                    priv->dlen = 8;
-                    p += 6;
-                }
-                else
+                
                 if (strncmp(p,"STRING",6) == 0)
                 {
                     priv->dtype = epicsStringT;
                     p += 6;
                 }
                 else
-                if (strncmp(p,"TIME",4) == 0)
                 {
-                    priv->dtype = S7MEM_TIME;
-                    priv->dlen = 1;
-                    p += 4;
-                }
-                else
-                {
-                    errlogSevPrintf(errlogFatal,
-                        "ioParse %s: invalid datatype %s\n",
-                        recordName, p);
-                    return S_drv_badParam;
+                    static int maxtype =
+                        sizeof(datatypes)/sizeof(*datatypes);
+                    for (i = 0; i < maxtype; i++)
+                    {
+                        nchar = strlen(datatypes[i].name);
+                        if (strncmp(p, datatypes[i].name, nchar) == 0)
+                        {
+                            priv->dtype = datatypes[i].type;
+                            priv->dlen = datatypes[i].dlen;
+                            p += nchar;
+                            break;
+                        }
+                    }
+                    if (i == maxtype)
+                    {
+                        errlogSevPrintf(errlogFatal,
+                            "s7plcIoParse %s: invalid datatype %s\n",
+                            recordName, p);
+                        return S_drv_badParam;
+                    }
                 }
                 break;
             case 'B': /* B=<bitnumber> */
                 p += 2;
                 priv->bit = strtol(p,&p,0);
                 break;
-            case 'L': /* L=<raw low value> (converts to EGUL)*/
+            case 'L': /* L=<low raw value> (converts to EGUL)*/
                 p += 2;
                 priv->hwLow = strtol(p,&p,0);
                 break;
-            case 'H': /* L=<raw high value> (converts to EGUF)*/
+            case 'H': /* L=<high raw value> (converts to EGUF)*/
                 p += 2;
                 priv->hwHigh = strtol(p,&p,0);
                 break;
@@ -554,26 +549,30 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
                     break;
                 }
             default:
-                errlogSevPrintf(errlogFatal, "ioParse %s: unknown parameter '%c'\n",
+                errlogSevPrintf(errlogFatal,
+                    "s7plcIoParse %s: unknown parameter '%c'\n",
                     recordName, *p);
                 return S_drv_badParam;
         }
     }
     
+    /* for T=STRING L=... means length, not low */
     if (priv->dtype == epicsStringT && priv->hwLow)
     {
-        /* for STRING L=... means length, not low */
         priv->dlen = priv->hwLow;
         priv->hwLow = 0;
     }
     
+    /* check if bit number is in range */
     if (priv->bit && priv->bit >= priv->dlen*8)
     {
-        errlogSevPrintf(errlogFatal, "ioParse %s: invalid bit number %d (>%d)\n",
+        errlogSevPrintf(errlogFatal,
+            "s7plcIoParse %s: invalid bit number %d (>%d)\n",
             recordName, priv->bit, priv->dlen*8-1);
         return S_drv_badParam;
     }
     
+    /* get default values for L and H if user did'n define them */
     switch (priv->dtype)
     {
         case epicsUInt8T:
@@ -607,20 +606,21 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
         default:
             if (priv->hwHigh || priv->hwLow) {
                 errlogSevPrintf(errlogMinor,
-                    "ioParse %s: L or H makes no sense with this data type\n",
+                    "s7plcIoParse %s: L or H makes"
+                    " no sense with this data type\n",
                     recordName);
             } 
             break;   
     }
-    s7plcDebugLog(1, "ioParse %s: dlen=%d\n",recordName, priv->dlen);
-    s7plcDebugLog(1, "ioParse %s: B=%d\n",   recordName, priv->bit);
-    s7plcDebugLog(1, "ioParse %s: L=%#x\n",  recordName, priv->hwLow);
-    s7plcDebugLog(1, "ioParse %s: H=%#x\n",  recordName, priv->hwHigh);
+    s7plcDebugLog(1, "s7plcIoParse %s: dlen=%d\n",recordName, priv->dlen);
+    s7plcDebugLog(1, "s7plcIoParse %s: B=%d\n",   recordName, priv->bit);
+    s7plcDebugLog(1, "s7plcIoParse %s: L=%#x\n",  recordName, priv->hwLow);
+    s7plcDebugLog(1, "s7plcIoParse %s: H=%#x\n",  recordName, priv->hwHigh);
 
     if (status)
     {
         errlogSevPrintf(errlogMinor,
-            "ioParse %s: L or H out of range for this data type\n",
+            "s7plcIoParse %s: L or H out of range for this data type\n",
             recordName);
         return status;
     }
@@ -630,7 +630,7 @@ static int ioParse(char* recordName, char *par, S7memPrivate_t *priv)
 
 /* bi for status bit ************************************************/
 
-static long s7plcInitRecordStat(biRecord *record)
+STATIC long s7plcInitRecordStat(biRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -643,7 +643,8 @@ static long s7plcInitRecordStat(biRecord *record)
     }
     priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
         "s7plcInitRecordStat");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -656,7 +657,7 @@ static long s7plcInitRecordStat(biRecord *record)
 }
 
 
-static long s7plcReadStat(biRecord *record)
+STATIC long s7plcReadStat(biRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -664,7 +665,8 @@ static long s7plcReadStat(biRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -685,7 +687,7 @@ static long s7plcReadStat(biRecord *record)
 
 /* bi ***************************************************************/
 
-static long s7plcInitRecordBi(biRecord *record)
+STATIC long s7plcInitRecordBi(biRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -696,9 +698,10 @@ static long s7plcInitRecordBi(biRecord *record)
             "s7plcInitRecordBi: illegal INP field type");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordBi");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordBi");
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -726,7 +729,7 @@ static long s7plcInitRecordBi(biRecord *record)
     return 0;
 }
 
-static long s7plcReadBi(biRecord *record)
+STATIC long s7plcReadBi(biRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -737,7 +740,8 @@ static long s7plcReadBi(biRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -768,7 +772,8 @@ static long s7plcReadBi(biRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -787,7 +792,7 @@ static long s7plcReadBi(biRecord *record)
 
 /* bo ***************************************************************/
 
-static long s7plcInitRecordBo(boRecord *record)
+STATIC long s7plcInitRecordBo(boRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -798,9 +803,10 @@ static long s7plcInitRecordBo(boRecord *record)
             "s7plcInitRecordBo: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordBo");
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordBo");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -825,10 +831,10 @@ static long s7plcInitRecordBo(boRecord *record)
     }
     record->mask = 1 << priv->bit;
     record->dpvt = priv;
-    return 0;
+    return 2; /* preserve whatever is in the VAL field */
 }
 
-static long s7plcWriteBo(boRecord *record)
+STATIC long s7plcWriteBo(boRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -839,7 +845,8 @@ static long s7plcWriteBo(boRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -874,7 +881,8 @@ static long s7plcWriteBo(boRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -892,7 +900,7 @@ static long s7plcWriteBo(boRecord *record)
 
 /* mbbi *************************************************************/
 
-static long s7plcInitRecordMbbi(mbbiRecord *record)
+STATIC long s7plcInitRecordMbbi(mbbiRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -903,9 +911,10 @@ static long s7plcInitRecordMbbi(mbbiRecord *record)
             "s7plcInitRecordMbbi: illegal INP field type");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordMbbi");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordMbbi");
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -933,7 +942,7 @@ static long s7plcInitRecordMbbi(mbbiRecord *record)
     return 0;
 }
 
-static long s7plcReadMbbi(mbbiRecord *record)
+STATIC long s7plcReadMbbi(mbbiRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -944,7 +953,8 @@ static long s7plcReadMbbi(mbbiRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -975,7 +985,8 @@ static long s7plcReadMbbi(mbbiRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -994,7 +1005,7 @@ static long s7plcReadMbbi(mbbiRecord *record)
 
 /* mbbo *************************************************************/
 
-static long s7plcInitRecordMbbo(mbboRecord *record)
+STATIC long s7plcInitRecordMbbo(mbboRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1004,9 +1015,10 @@ static long s7plcInitRecordMbbo(mbboRecord *record)
             "s7plcInitRecordMbbo: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordMbbo");
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordMbbo");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1031,10 +1043,10 @@ static long s7plcInitRecordMbbo(mbboRecord *record)
             return S_db_badField;
     }
     record->dpvt = priv;
-    return 2;
+    return 2; /* preserve whatever is in the VAL field */
 }
 
-static long s7plcWriteMbbo(mbboRecord *record)
+STATIC long s7plcWriteMbbo(mbboRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1045,7 +1057,8 @@ static long s7plcWriteMbbo(mbboRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1080,7 +1093,8 @@ static long s7plcWriteMbbo(mbboRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1098,7 +1112,7 @@ static long s7plcWriteMbbo(mbboRecord *record)
 
 /* mbbiDirect *******************************************************/
 
-static long s7plcInitRecordMbbiDirect(mbbiDirectRecord *record)
+STATIC long s7plcInitRecordMbbiDirect(mbbiDirectRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1109,9 +1123,10 @@ static long s7plcInitRecordMbbiDirect(mbbiDirectRecord *record)
             "s7plcInitRecordMbbiDirect: illegal INP field type");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordMbbiDirect");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordMbbiDirect");
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1139,7 +1154,7 @@ static long s7plcInitRecordMbbiDirect(mbbiDirectRecord *record)
     return 0;
 }
 
-static long s7plcReadMbbiDirect(mbbiDirectRecord *record)
+STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1150,7 +1165,8 @@ static long s7plcReadMbbiDirect(mbbiDirectRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1181,7 +1197,8 @@ static long s7plcReadMbbiDirect(mbbiDirectRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1200,7 +1217,7 @@ static long s7plcReadMbbiDirect(mbbiDirectRecord *record)
 
 /* mbboDirect *******************************************************/
 
-static long s7plcInitRecordMbboDirect(mbboDirectRecord *record)
+STATIC long s7plcInitRecordMbboDirect(mbboDirectRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1210,9 +1227,10 @@ static long s7plcInitRecordMbboDirect(mbboDirectRecord *record)
             "s7plcInitRecordMbboDirect: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordMbboDirect");
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordMbboDirect");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1237,10 +1255,10 @@ static long s7plcInitRecordMbboDirect(mbboDirectRecord *record)
             return S_db_badField;
     }
     record->dpvt = priv;
-    return 0;
+    return 2; /* preserve whatever is in the VAL field */
 }
 
-static long s7plcWriteMbboDirect(mbboDirectRecord *record)
+STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1251,7 +1269,8 @@ static long s7plcWriteMbboDirect(mbboDirectRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1286,7 +1305,8 @@ static long s7plcWriteMbboDirect(mbboDirectRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n", record->name);
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n", record->name);
             return -1;
     }
     if (status == S_drv_noConn)
@@ -1303,7 +1323,7 @@ static long s7plcWriteMbboDirect(mbboDirectRecord *record)
 
 /* longin ***********************************************************/
 
-static long s7plcInitRecordLongin(longinRecord *record)
+STATIC long s7plcInitRecordLongin(longinRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1314,9 +1334,10 @@ static long s7plcInitRecordLongin(longinRecord *record)
             "s7plcInitRecordLongin: illegal INP field type");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordLongin");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordLongin");
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1343,7 +1364,7 @@ static long s7plcInitRecordLongin(longinRecord *record)
     return 0;
 }
 
-static long s7plcReadLongin(longinRecord *record)
+STATIC long s7plcReadLongin(longinRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1357,7 +1378,8 @@ static long s7plcReadLongin(longinRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1407,7 +1429,8 @@ static long s7plcReadLongin(longinRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1425,7 +1448,7 @@ static long s7plcReadLongin(longinRecord *record)
 
 /* longout **********************************************************/
 
-static long s7plcInitRecordLongout(longoutRecord *record)
+STATIC long s7plcInitRecordLongout(longoutRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1435,9 +1458,10 @@ static long s7plcInitRecordLongout(longoutRecord *record)
             "s7plcInitRecordLongout: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordLongout");
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordLongout");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1464,7 +1488,7 @@ static long s7plcInitRecordLongout(longoutRecord *record)
     return 0;
 }
 
-static long s7plcWriteLongout(longoutRecord *record)
+STATIC long s7plcWriteLongout(longoutRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1475,7 +1499,8 @@ static long s7plcWriteLongout(longoutRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1507,7 +1532,8 @@ static long s7plcWriteLongout(longoutRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1525,7 +1551,7 @@ static long s7plcWriteLongout(longoutRecord *record)
 
 /* ai ***************************************************************/
 
-static long s7plcInitRecordAi(aiRecord *record)
+STATIC long s7plcInitRecordAi(aiRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1538,7 +1564,7 @@ static long s7plcInitRecordAi(aiRecord *record)
     }
     priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
         "s7plcInitRecordAi");
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    status = s7plcIoParse(record->name, record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1568,9 +1594,9 @@ static long s7plcInitRecordAi(aiRecord *record)
     return 0;
 }
 
-static long s7plcReadAi(aiRecord *record)
+STATIC long s7plcReadAi(aiRecord *record)
 {
-    int status, noconvert = FALSE;
+    int status, floatval = FALSE;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
     signed char sval8;
     unsigned char uval8;
@@ -1637,20 +1663,20 @@ static long s7plcReadAi(aiRecord *record)
                 4, &val32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x = %g\n",
                 record->name, *(unsigned int*) &val32, val32);
-            record->val = val32;
-            noconvert = TRUE;
+            val64 = val32;
+            floatval = TRUE;
             break;
         case epicsFloat64T:
             status = s7plcRead(priv->station, priv->st_offs,
                 8, &val64);
-            s7plcDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
+            __extension__ s7plcDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
                 record->name, *(long long*) &val64, val64);
-            record->val = val64;
-            noconvert = TRUE;
+            floatval = TRUE;
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1664,15 +1690,24 @@ static long s7plcReadAi(aiRecord *record)
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
     }
-    if (noconvert)
+    if (floatval)
     {
+        /* emulate scaling */
+        if (record->aslo != 0.0) val64 *= record->aslo;
+        val64 += record->aoff;
+        if (record->udf)
+            record->val = val64;
+        else
+            /* emulate smoothing */
+            record->val = record->val * record->smoo +
+                val64 * (1.0 - record->smoo);
         record->udf = FALSE;
         return 2;
     }
     return 0;
 }
 
-static long s7plcSpecialLinconvAi(aiRecord *record, int after)
+STATIC long s7plcSpecialLinconvAi(aiRecord *record, int after)
 {
     epicsUInt32 hwSpan;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1680,14 +1715,16 @@ static long s7plcSpecialLinconvAi(aiRecord *record, int after)
     if (after) {
         hwSpan = priv->hwHigh - priv->hwLow;
         record->eslo = (record->eguf - record->egul) / hwSpan;
-        record->eoff = (priv->hwHigh*record->egul - priv->hwLow*record->eguf) / hwSpan;;
+        record->eoff =
+            (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
+            / hwSpan;;
     }
     return 0;
 }
 
 /* ao ***************************************************************/
 
-static long s7plcInitRecordAo(aoRecord *record)
+STATIC long s7plcInitRecordAo(aoRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1697,9 +1734,10 @@ static long s7plcInitRecordAo(aoRecord *record)
             "s7plcInitRecordAo: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordAo");
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordAo");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1726,10 +1764,10 @@ static long s7plcInitRecordAo(aoRecord *record)
     }
     record->dpvt = priv;
     s7plcSpecialLinconvAo(record, TRUE);
-    return 0;
+    return 2; /* preserve whatever is in the VAL field */
 }
 
-static long s7plcWriteAo(aoRecord *record)
+STATIC long s7plcWriteAo(aoRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1742,7 +1780,8 @@ static long s7plcWriteAo(aoRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1802,22 +1841,29 @@ static long s7plcWriteAo(aoRecord *record)
                 4, &rval32);
             break;
         case epicsFloat32T:
-            val32 = record->val;
+            /* emulate scaling */
+            val32 = record->oval - record->aoff;
+            if (record->aslo != 0) val32 /= record->aslo;
+            
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
                 record->name, *(epicsInt32*)&val32);
             status = s7plcWrite(priv->station, priv->st_offs,
                 4, &val32);
             break;
         case epicsFloat64T:
-            val64 = record->val;
-            s7plcDebugLog(2, "ao %s: write 64bit %016Lx\n",
+            /* emulate scaling */
+            val64 = record->oval - record->aoff;
+            if (record->aslo != 0) val64 /= record->aslo;
+            
+            __extension__ s7plcDebugLog(2, "ao %s: write 64bit %016Lx\n",
                 record->name, *(long long*)&val64);
             status = s7plcWrite(priv->station, priv->st_offs,
                 8, &val64);
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }
@@ -1833,7 +1879,7 @@ static long s7plcWriteAo(aoRecord *record)
     return status;
 }
 
-static long s7plcSpecialLinconvAo(aoRecord *record, int after)
+STATIC long s7plcSpecialLinconvAo(aoRecord *record, int after)
 {
     epicsUInt32 hwSpan;
     S7memPrivate_t *priv = (S7memPrivate_t *) record->dpvt;
@@ -1841,14 +1887,16 @@ static long s7plcSpecialLinconvAo(aoRecord *record, int after)
     if (after) {
         hwSpan = priv->hwHigh - priv->hwLow;
         record->eslo = (record->eguf - record->egul) / hwSpan;
-        record->eoff = (priv->hwHigh*record->egul - priv->hwLow*record->eguf) / hwSpan;;
+        record->eoff = 
+            (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
+            / hwSpan;;
     }
     return 0;
 }
 
 /* stringin *********************************************************/
 
-static long s7plcInitRecordStringin(stringinRecord *record)
+STATIC long s7plcInitRecordStringin(stringinRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1859,11 +1907,12 @@ static long s7plcInitRecordStringin(stringinRecord *record)
             "s7plcInitRecordStringin: illegal INP field type");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordStringin");
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordStringin");
     priv->dtype = epicsStringT;
     priv->dlen = sizeof(record->val);
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1880,7 +1929,8 @@ static long s7plcInitRecordStringin(stringinRecord *record)
     }
     if (priv->dlen > sizeof(record->val))
     {
-        errlogSevPrintf(errlogMinor, "%s: string size reduced from %d to %d\n",
+        errlogSevPrintf(errlogMinor,
+            "%s: string size reduced from %d to %d\n",
             record->name, priv->dlen, sizeof(record->val));
         priv->dlen = sizeof(record->val);
     }
@@ -1888,7 +1938,7 @@ static long s7plcInitRecordStringin(stringinRecord *record)
     return 0;
 }
 
-static long s7plcReadStringin(stringinRecord *record)
+STATIC long s7plcReadStringin(stringinRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1896,7 +1946,8 @@ static long s7plcReadStringin(stringinRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1924,7 +1975,7 @@ static long s7plcReadStringin(stringinRecord *record)
 
 /* stringout ********************************************************/
 
-static long s7plcInitRecordStringout(stringoutRecord *record)
+STATIC long s7plcInitRecordStringout(stringoutRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -1934,11 +1985,12 @@ static long s7plcInitRecordStringout(stringoutRecord *record)
             "s7plcInitRecordStringout: illegal OUT field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordStringout");
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordStringout");
     priv->dtype = epicsStringT;
     priv->dlen = sizeof(record->val);
-    status = ioParse(record->name, record->out.value.instio.string, priv);
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -1955,7 +2007,8 @@ static long s7plcInitRecordStringout(stringoutRecord *record)
     }
     if (priv->dlen > sizeof(record->val))
     {
-        errlogSevPrintf(errlogMinor, "%s: string size reduced from %d to %d\n",
+        errlogSevPrintf(errlogMinor,
+            "%s: string size reduced from %d to %d\n",
             record->name, priv->dlen, sizeof(record->val));
         priv->dlen = sizeof(record->val);
     }
@@ -1963,7 +2016,7 @@ static long s7plcInitRecordStringout(stringoutRecord *record)
     return 0;
 }
 
-static long s7plcWriteStringout(stringoutRecord *record)
+STATIC long s7plcWriteStringout(stringoutRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1971,7 +2024,8 @@ static long s7plcWriteStringout(stringoutRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -1993,7 +2047,7 @@ static long s7plcWriteStringout(stringoutRecord *record)
 
 /* waveform *********************************************************/
 
-static long s7plcInitRecordWaveform(waveformRecord *record)
+STATIC long s7plcInitRecordWaveform(waveformRecord *record)
 {
     S7memPrivate_t *priv;
     int status;
@@ -2003,8 +2057,8 @@ static long s7plcInitRecordWaveform(waveformRecord *record)
             "s7plcInitRecordWaveform: illegal INP field");
         return S_db_badField;
     }
-    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
-        "s7plcInitRecordWaveform");
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordWaveform");
     switch (record->ftvl)
     {
         case DBF_CHAR:
@@ -2045,7 +2099,8 @@ static long s7plcInitRecordWaveform(waveformRecord *record)
                 record->name);
             return S_db_badField;
     }
-    status = ioParse(record->name, record->inp.value.instio.string, priv);
+    status = s7plcIoParse(record->name,
+        record->inp.value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
@@ -2113,7 +2168,8 @@ static long s7plcInitRecordWaveform(waveformRecord *record)
     if (status)
     {
         errlogSevPrintf(errlogFatal,
-            "s7plcInitRecordWaveform %s: wrong FTVL field for this data type",
+            "s7plcInitRecordWaveform %s: "
+            "wrong FTVL field for this data type",
             record->name);
         return status;
     }
@@ -2134,7 +2190,7 @@ static unsigned char bcd2d(unsigned char bcd)
     return tmp;
 }
 
-static long s7plcReadWaveform(waveformRecord *record)
+STATIC long s7plcReadWaveform(waveformRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -2145,7 +2201,8 @@ static long s7plcReadWaveform(waveformRecord *record)
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        errlogSevPrintf(errlogFatal, "%s: not initialized\n", record->name);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
         return -1;
     }
     assert(priv->station);
@@ -2156,14 +2213,16 @@ static long s7plcReadWaveform(waveformRecord *record)
         case epicsStringT:
             status = s7plcReadArray(priv->station, priv->st_offs,
                 1, record->nelm, record->bptr);
-            s7plcDebugLog(3, "waveform %s: read %ld values of 8bit to %p\n",
+            s7plcDebugLog(3,
+                "waveform %s: read %ld values of 8bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case epicsInt16T:
         case epicsUInt16T:
             status = s7plcReadArray(priv->station, priv->st_offs,
                 2, record->nelm, record->bptr);
-            s7plcDebugLog(3, "waveform %s: read %ld values of 16bit to %p\n",
+            s7plcDebugLog(3,
+                "waveform %s: read %ld values of 16bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case epicsInt32T:
@@ -2171,19 +2230,22 @@ static long s7plcReadWaveform(waveformRecord *record)
         case epicsFloat32T:
             status = s7plcReadArray(priv->station, priv->st_offs,
                 4, record->nelm, record->bptr);
-            s7plcDebugLog(3, "waveform %s: read %ld values of 32bit to %p\n",
+            s7plcDebugLog(3,
+                "waveform %s: read %ld values of 32bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case epicsFloat64T:
             status = s7plcReadArray(priv->station, priv->st_offs,
                 8, record->nelm, record->bptr);
-            s7plcDebugLog(3, "waveform %s: read %ld values of 64bit to %p\n",
+            s7plcDebugLog(3,
+                "waveform %s: read %ld values of 64bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case S7MEM_TIME:
             status = s7plcReadArray(priv->station, priv->st_offs,
                 1, 8, Time);
-            s7plcDebugLog(3, "waveform %s: read 8 values of 8bit to %p\n",
+            s7plcDebugLog(3,
+                "waveform %s: read 8 values of 8bit to %p\n",
                 record->name, record->bptr);
             if (status) break;
             for (i = 0, p = record->bptr; i < record->nelm; i++)
@@ -2191,7 +2253,8 @@ static long s7plcReadWaveform(waveformRecord *record)
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal, "%s: unexpected data type requested\n",
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
                 record->name);
             return -1;
     }

@@ -1,19 +1,22 @@
 /* $Author: zimoch $ */ 
-/* $Date: 2005/02/07 16:06:41 $ */ 
-/* $Id: drvS7plc.h,v 1.1 2005/02/07 16:06:41 zimoch Exp $ */  
+/* $Date: 2005/03/11 08:35:26 $ */ 
+/* $Id: drvS7plc.h,v 1.2 2005/03/11 08:35:26 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.1 $ */ 
+/* $Revision: 1.2 $ */ 
 
 #ifndef drvS7plc_h
 #define drvS7plc_h
 
-#define Ok 0
-#define ERR -1
-
-#define MAX_DEVNAME_SIZE	15
+#include <dbScan.h>
 
 #ifndef __GNUC__
-#define __attribute__()
+#define __attribute__(a)
+#endif
+
+#ifndef DEBUG
+#define STATIC static
+#else
+#define STATIC
 #endif
 
 /*  driver initialisation define  */
@@ -25,10 +28,9 @@ extern int s7plcDebug;
 void s7plcDebugLog(int level, const char *fmt, ...)
 __attribute__((format(printf, 2, 3)));
 
-s7plcStation *s7plcOpen(
-    char *name,
-    unsigned int stationNumber
-);
+s7plcStation *s7plcOpen(char *name);
+IOSCANPVT s7plcGetInScanPvt(s7plcStation *station);
+IOSCANPVT s7plcGetOutScanPvt(s7plcStation *station);
 
 int s7plcReadArray(
     s7plcStation *station,
