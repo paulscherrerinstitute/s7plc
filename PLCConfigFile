@@ -1,0 +1,14 @@
+# PLC onfiguration file for S7 SIEMENS PLC
+#
+# Format:
+# <SN>	<IP_address>  <rdBlockSize>  [<wrBlockSize>]
+#
+# where <SN> - station number
+#	<IP_address> - PLC IP address
+#	<rdBlockSize> - read block size (in bytes)
+#	<wrBlockSize> - write block size (in bytes, optional)
+#-------------------------------------------------------------
+# SN	IP_address	rdBlockSize	wrBlockSize
+#-------------------------------------------------------
+#0       192.168.10.223	     80		80
+0       127.0.0.1	     80		80
