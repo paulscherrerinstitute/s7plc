@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 10:25:53 $ */
-/* $Id: ticp.h,v 1.3 2005/02/28 10:25:53 zimoch Exp $ */
+/* $Date: 2005/02/28 15:12:57 $ */
+/* $Id: ticp.h,v 1.4 2005/02/28 15:12:57 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.3 $ */
+/* $Revision: 1.4 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -145,13 +145,6 @@
 #define REPORT_ALL                 4  /* report all */
 
 /*  data layout*/
-typedef struct s_status_dwn {
-    epicsUInt16 status[MAX_DWN_STA_SIZE];  /* status buffer */
-} sm_status_dwn;
-
-typedef struct s_status_up {
-    epicsUInt16 status[MAX_UP_STA_SIZE];   /* status buffer */
-} sm_status_up;
 
 typedef struct s_data_dwn {
     epicsUInt8  data[MAX_DWN_BUF_SIZE*2];  /* byte data buffer */
@@ -166,9 +159,7 @@ typedef struct s_com_status {
 } sm_com_status;
 
 typedef struct sm_ly {
-    sm_status_dwn   sta_dwn[MAX_COC];   /* EPICS status */
     sm_data_dwn     buf_dwn[MAX_COC];   /* down buffer, from EPICS to S7 */
-    sm_status_up    sta_up[MAX_COC];    /* S7 status */
     sm_data_up      buf_up[MAX_COC];    /* up buffer, from S7 to EPICS */
     sm_com_status   com_sta;            /* communication status */
     epicsMutexId    semID_dwn[MAX_COC]; /* down semaphores IDs buffer */
@@ -195,8 +186,7 @@ typedef struct msg_header {
 
 void ICP_start(sm_layout* pSM,        /* allocated memory table */
                unsigned GlbSwapBytes, /* swap bytes flag */
-               unsigned RepLev,       /* report level */
-               char RemHead);         /* with/withou remote header */
+               unsigned RepLev);      /* report level */
                
 int ticpReport();
 #endif /* INCticph */

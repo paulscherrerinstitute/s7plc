@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 13:23:11 $ */
-/* $Id: tiCP.c,v 1.7 2005/02/28 13:23:11 zimoch Exp $ */
+/* $Date: 2005/02/28 15:12:57 $ */
+/* $Id: tiCP.c,v 1.8 2005/02/28 15:12:57 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.7 $ */
+/* $Revision: 1.8 $ */
 
 
 /*=============================================================================
@@ -220,15 +220,13 @@ typedef struct {
 
 int TICP_debug = 0;
 
-static char RemoteHeader = 0;    /* default version is without remote header */
-
 /*------------------------------------------*/
 /*=============================================================================
 // Section:        DATAS
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.7 2005/02/28 13:23:11 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.8 2005/02/28 15:12:57 zimoch Exp $";
 
 static tcpClientContext clientContext [MAX_COC];
 static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv data */       
@@ -307,10 +305,7 @@ int    lineParse(char *lineBuf, int line, dCoC *pCoC);
 void ICP_version()
 {
     printf("%s ", cvsid);
-    if (RemoteHeader)
-        printf("with Remote Header\n");
-    else
-        printf("without Remote Header\n");
+    printf("without Remote Header\n");
 }
 
 /*=============================================================================
@@ -319,11 +314,9 @@ void ICP_version()
 //===========================================================================*/
 void ICP_start(sm_layout* pSM,        /* allocated memory table */
                unsigned GlbSwapBytes, /* swap bytes flag (not used any more)*/
-               unsigned RepLev,       /* report level */
-               char RemHead)          /* with/withou remote header */
+               unsigned RepLev)       /* report level */
 {
     static ticpArgs args;
-    RemoteHeader = (RemHead)? 1: 0;
     
     args.ConfCode = 0;
     args.pSM = pSM;
@@ -684,7 +677,6 @@ STATUS tcpClient (tcpClientContext* context)
     char   recvBuf[2*(MAX_UP_BUF_SIZE+1)];        /* receive buffer */
     int    serverPort=SERVER_PORT_NUM;
     int    idx;
-    msg_header *psendHeader = (msg_header *)sendBuf;
 
     char *serverIP   = context->serverIP;
     int serverPortin = context->serverPortin;
@@ -692,16 +684,8 @@ STATUS tcpClient (tcpClientContext* context)
     int nr_coc       = context->nr_coc;
 
     context->sock=0;
-    if (RemoteHeader) {
-        /* bcopyWords(&pSM->sta_dwn[nr_coc].status[0],&sendBuf[0],(S_LEN)); */   /* copy the send header */
-        memcpy(sendBuf, pSM->sta_dwn[nr_coc].status,(2*S_LEN));    /* copy the send header */
-        for (idx=2*S_LEN;idx<2*MAX_DWN_BUF_SIZE;idx++) {
-            sendBuf[idx]=0x00;
-        }
-    } else {
-        for (idx=0;idx<2*MAX_DWN_BUF_SIZE;idx++) {
-            sendBuf[idx]=0x00;
-        }
+    for (idx=0;idx<2*MAX_DWN_BUF_SIZE;idx++) {
+        sendBuf[idx]=0x00;
     }
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -784,7 +768,6 @@ STATUS tcpClient (tcpClientContext* context)
             int iNumRead;
             int iNumWritten;
             int iRC;
-            msg_header *rcvHeader = (msg_header *)recvBuf;
 
             /* check: time for send new down data block ? */
             if (context->sendData)
@@ -796,28 +779,6 @@ STATUS tcpClient (tcpClientContext* context)
                 epicsMutexMustLock(pSM->semID_dwn[nr_coc]);
 
                 sm_BufGet(sendBuf, pSM, nr_coc);
-
-                if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {    /**** debugging print out *****/
-
-                    if (RemoteHeader) {
-                    psendHeader = (msg_header *)sendBuf;
-                    errlogPrintf("ICP %d: header before send: 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-                        nr_coc,
-                        psendHeader->plcID,
-                        psendHeader->byteCnt,
-                        psendHeader->resrv[0],
-                        psendHeader->resrv[1],
-                        psendHeader->resrv[2]);
-                    psendHeader = (msg_header *)&sendBuf[20]; /* strange DZ */
-                    errlogPrintf("ICP %d: data before send: 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-                        nr_coc,
-                        psendHeader->plcID,
-                        psendHeader->byteCnt,
-                        psendHeader->resrv[0],
-                        psendHeader->resrv[1],
-                        psendHeader->resrv[2]);
-                     }
-                }    /***************************/
 
                 /* unblock the corresponding area of SM */
                 epicsMutexUnlock(pSM->semID_dwn[nr_coc]);
@@ -861,44 +822,6 @@ STATUS tcpClient (tcpClientContext* context)
                     nr_coc, iNumRead);
 
             if (iNumRead > 0) {        /* some data (>0 bytes) received */
-
-                if (RemoteHeader) {
-                    if (context->readIndex == 0) {    /* New block starts */
-
-                    /* check whether the PLC ID is correct */
-
-
-                        if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-                            errlogPrintf("ICP %d: Got PLC ID=%d\n", nr_coc, rcvHeader->plcID);
-                        if (pSM->sta_up[nr_coc].status[H_ADR_PLC_ID] != rcvHeader->plcID)
-                        {    /* is the ID correct? */
-                            errlogPrintf("ICP %d: Wrong PLC ID=%d\n", nr_coc, rcvHeader->plcID);
-                            break;        /* ignore the data and shutdown the connections */
-                        }
-
-                        if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-                            errlogPrintf("ICP %d: Got %d bytes\n", nr_coc, rcvHeader->byteCnt);
-
-                        if (pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT] != rcvHeader->byteCnt)
-                        {
-
-                            if ((rcvHeader->byteCnt > 0) && (rcvHeader->byteCnt < MAX_UP_BUF_SIZE * 2))
-                            {
-                                pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT] = rcvHeader->byteCnt;
-
-                                if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-                                    errlogPrintf("tcpClient %d: PLC BYTE_CNT changed to %d\n",
-                                        nr_coc, pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT]);
-
-                                context->readSize = pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT];
-                            }
-                            else {        /* Not valid byte counter */
-                                errlogPrintf("ICP %d: BYTE_CNT is not valid = %d\n", nr_coc, rcvHeader->byteCnt);
-                                break;        /* shut down the connection */
-                            }
-                        }
-                    }
-                }
 
                 /* block the corresponding area of SM */
                 epicsMutexMustLock(pSM->semID_up[nr_coc]);
@@ -1172,44 +1095,6 @@ BOOL sm_Init(sm_layout* pSM)
             pSM->buf_up[nr_coc].data[idx] = (int)0;
         }
 
-        if (RemoteHeader) {    /* if remote header is used initialize headers */
-
-            /* downstream headers */
-            for (idx = 0; idx < MAX_DWN_STA_SIZE; idx++) {
-                if (CoC[nr_coc].id) {    /* for active PLC */
-                    if (idx == 0) {
-                        pSM->sta_dwn[nr_coc].status[idx] = CoC[nr_coc].id;        /* set 1-st word as ID */
-                        continue;
-                    }
-                    if (idx == 1) {
-                        pSM->sta_dwn[nr_coc].status[idx] = CoC[nr_coc].wrBlSize;    /* set 2-nd word as byte counter */
-                        continue;
-                    }
-                    else
-                        pSM->sta_dwn[nr_coc].status[idx] = 0;
-                }
-                else
-                    pSM->sta_dwn[nr_coc].status[idx] = 0;
-            }
-
-            /* upstream headers */
-            for (idx = 0; idx < MAX_UP_STA_SIZE; idx++) {
-                if (CoC[nr_coc].id) {    /* for active PLC */
-                    if (idx == 0) {
-                        pSM->sta_up[nr_coc].status[idx] = CoC[nr_coc].id;        /* set 1-st word as ID */
-                        continue;
-                    }
-                    if (idx == 1) {
-                        pSM->sta_up[nr_coc].status[idx] = CoC[nr_coc].rdBlSize;    /* set 2-nd word as byte counter */
-                        continue;
-                    }
-                    else
-                        pSM->sta_up[nr_coc].status[idx] = 0;
-                }
-                else
-                    pSM->sta_up[nr_coc].status[idx] = 0;
-            }
-        }
     }
     return 1;
 }
@@ -1224,21 +1109,12 @@ BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
 
     /* copy to A32 slave memory */
 
-    if (RemoteHeader) {
-/*      bcopyBytes((char *)&pSM->buf_dwn[nr_coc].data[2*S_LEN],&sendBuf[2*S_LEN],(block_length_dwn[nr_coc]-2*S_LEN)); */
-        memcpy(&sendBuf[2*S_LEN],&pSM->buf_dwn[nr_coc].data[2*S_LEN],(clientContext[nr_coc].writeSize-2*S_LEN));
-        if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP %d: DWN: id %4d length %d\n",
-                    nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID], clientContext[nr_coc].writeSize);
-    } else {
-/*      bcopyBytes((char *)pSM->buf_dwn[nr_coc].data, sendBuf,(block_length_dwn[nr_coc])); */
-        memcpy(sendBuf, pSM->buf_dwn[nr_coc].data, clientContext[nr_coc].writeSize);
-        if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP %d: DWN: length: %d\n",
-                    nr_coc, clientContext[nr_coc].writeSize);
-    }
+/*  bcopyBytes((char *)pSM->buf_dwn[nr_coc].data, sendBuf,(block_length_dwn[nr_coc])); */
+    memcpy(sendBuf, pSM->buf_dwn[nr_coc].data, clientContext[nr_coc].writeSize);
+    if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+            errlogPrintf("ICP %d: DWN: length: %d\n",
+                nr_coc, clientContext[nr_coc].writeSize);
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
@@ -1279,17 +1155,9 @@ BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
     SmInitialized = 1;
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
-        if (RemoteHeader) {
-            if (chk_msg_sta(RBB, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP %d: PLC ID=%d UP_BYTE_CNT=%d DWN_BYTE_CNT=%d\n",
-            nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID],
-            pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT],
-            pSM->sta_dwn[nr_coc].status[H_ADR_BYTE_CNT]);
-        } else {
-            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP %d: UP: length: %d\n",
-            nr_coc, clientContext[nr_coc].readSize);
-        }
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+            errlogPrintf("ICP %d: UP: length: %d\n",
+        nr_coc, clientContext[nr_coc].readSize);
 
         if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
             errlogPrintf("ICP %d: sm_BufPut::com_status::alive_ctr: %4d\n",
@@ -1299,9 +1167,6 @@ BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
             errlogPrintf("ICP %d: sm_BufPut::com_status::alive_ctr[%d]: %4d\n",
                 nr_coc, nr_coc, pSM->com_sta.status[H_ADR_ALIVE_CTR+nr_coc+1]);
 
-        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-            errlogPrintf("ICP %d: UP 0x%x: data:\n",
-                nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID]);
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_up[nr_coc].data[0],

@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.4 2005/02/16 17:53:19 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.5 2005/02/28 15:12:57 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +33,7 @@
 #endif
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.4 2005/02/16 17:53:19 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.5 2005/02/28 15:12:57 zimoch Exp $";
 
 static long s7plcIoReport(int level); 
 static long s7plcInit();
@@ -51,10 +51,6 @@ struct {
 epicsExportAddress(drvet, s7plc);
 
 struct s7plcStation {
-    char *downStatus;
-    unsigned int downStatusSize;
-    char *upStatus;
-    unsigned int upStatusSize;
     char *downBuffer;
     unsigned int downBufferSize;
     char *upBuffer;
@@ -110,10 +106,6 @@ static long s7plcIoReport(int level)
                 device->station[i].downBuffer,  device->station[i].downBufferSize);
             printf("              upBuffer   @ %p (%d bytes)\n",
                 device->station[i].upBuffer,  device->station[i].upBufferSize);
-            printf("              downStatus @ %p (%d bytes)\n",
-                device->station[i].downStatus,  device->station[i].downStatusSize);
-            printf("              upStatus   @ %p (%d bytes)\n",
-                device->station[i].upStatus,  device->station[i].upStatusSize);
             printf("              connStatus @ %p\n",
                 device->station[i].connStatus);
             printf("              swapBytes  %s\n",
@@ -136,7 +128,7 @@ static long s7plcInit()
     for (device = devices; device; device = device->next)
     {
         s7plcDebugLog(1, "starting ICP \"%s\"\n", device->name);
-        ICP_start(device->mem, 0, 4, 0);
+        ICP_start(device->mem, 0, 4);
     }
     return 0;
 }
@@ -170,10 +162,6 @@ int s7plcConfigure(char *devName, int bigEndian)
     s7plcDebugLog(1, "device %s at %p, size = %d\n", devName, mem, sizeof(*mem));
     for (i = 0; i < numStations; i++)
     {
-        station[i].downStatus = (char*)&mem->sta_dwn[i];
-        station[i].downStatusSize = sizeof(mem->sta_dwn[i]);
-        station[i].upStatus = (char*)&mem->sta_up[i];
-        station[i].upStatusSize = sizeof(mem->sta_up[i]);
         station[i].downBuffer = (char*)&mem->buf_dwn[i];
         station[i].downBufferSize = sizeof(mem->buf_dwn[i]);
         station[i].upBuffer = (char*)&mem->buf_up[i];
@@ -189,12 +177,8 @@ int s7plcConfigure(char *devName, int bigEndian)
 #error Strange byte order on this machine
 #endif        
         s7plcDebugLog(1, "station %d at %p\n", i, &station[i]);
-        s7plcDebugLog(1, "    downStatus offset = %d, size = %d words\n",
-            station[i].downStatus - (char*)mem, station[i].downStatusSize/2);
         s7plcDebugLog(1, "    downBuffer offset = %d, size = %d words\n",
             station[i].downBuffer - (char*)mem, station[i].downBufferSize/2);
-        s7plcDebugLog(1, "    upStatus   offset = %d, size = %d words\n",
-            station[i].upStatus - (char*)mem, station[i].upStatusSize/2);
         s7plcDebugLog(1, "    upBuffer   offset = %d, size = %d words\n",
             station[i].upBuffer - (char*)mem, station[i].upBufferSize/2);
         s7plcDebugLog(1, "    connStatus offset = %d\n",
