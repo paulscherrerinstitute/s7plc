@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/07 16:06:41 $ */
-/* $Id: tiCP.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $ */
+/* $Date: 2005/02/14 13:27:41 $ */
+/* $Id: tiCP.c,v 1.2 2005/02/14 13:27:41 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.1 $ */
+/* $Revision: 1.2 $ */
 
 
 /*=============================================================================
@@ -221,7 +221,7 @@ static char RemoteHeader = FALSE;    /* default version is without remote header
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.2 2005/02/14 13:27:41 zimoch Exp $";
 
 static int    sFd[16];                        /* socket File descriptors */
 
@@ -262,22 +262,22 @@ static epicsThreadId tidClient[MAX_COC] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};    
                                 of client tid to be used during shutdown */
 static short clientRestart[MAX_COC] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};    /* Array of restart flags for clients */
 static dCoC CoC[] = {
-        {0,"TcpClient 0","",0,0,0},
-        {0,"TcpClient 1","",0,0,0},
-        {0,"TcpClient 2","",0,0,0},
-        {0,"TcpClient 3","",0,0,0},
-        {0,"TcpClient 4","",0,0,0},
-        {0,"TcpClient 5","",0,0,0},
-        {0,"TcpClient 6","",0,0,0},
-        {0,"TcpClient 7","",0,0,0},
-        {0,"TcpClient 8","",0,0,0},
-        {0,"TcpClient 9","",0,0,0},
-        {0,"TcpClient 10","",0,0,0},
-        {0,"TcpClient 11","",0,0,0},
-        {0,"TcpClient 12","",0,0,0},
-        {0,"TcpClient 13","",0,0,0},
-        {0,"TcpClient 14","",0,0,0},
-        {0,"TcpClient 15","",0,0,0}
+        {0,"TcpClient 0","", 0, 0, 0},
+        {0,"TcpClient 1","", 0, 0, 0},
+        {0,"TcpClient 2","", 0, 0, 0},
+        {0,"TcpClient 3","", 0, 0, 0},
+        {0,"TcpClient 4","", 0, 0, 0},
+        {0,"TcpClient 5","", 0, 0, 0},
+        {0,"TcpClient 6","", 0, 0, 0},
+        {0,"TcpClient 7","", 0, 0, 0},
+        {0,"TcpClient 8","", 0, 0, 0},
+        {0,"TcpClient 9","", 0, 0, 0},
+        {0,"TcpClient 10","", 0, 0, 0},
+        {0,"TcpClient 11","", 0, 0, 0},
+        {0,"TcpClient 12","", 0, 0, 0},
+        {0,"TcpClient 13","", 0, 0, 0},
+        {0,"TcpClient 14","", 0, 0, 0},
+        {0,"TcpClient 15","", 0, 0, 0}
 };
 
 /*=============================================================================
@@ -288,20 +288,20 @@ void ICP_version();
 void ticp (ticpArgs* args);
 STATUS tcpClient (tcpClientArgs* args);
 BOOL   copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc);
-int    wfTimeoutOrRxdata(int sockD,int nr_coc);
+int    wfTimeoutOrRxdata(int sockD, int nr_coc);
 int    establishConnection(int sockD, char * serverIP, int setverPort);
 /*int  cleanup(WIND_TCB *pTcb);*/
 
 BOOL   sm_Init(sm_layout* pSM);                                   /* initialize up/dwn data buffer */
-BOOL   sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc);/* get block from down buffer */
-BOOL   sm_BufPut(char* recvBuf,sm_layout* pSM,int nr_coc);/* put block to up buffer */
-void   CreateTestPattern(sm_layout* pSM,int tst_cntr);          /* initialize up data buffer */
+BOOL   sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc);/* get block from down buffer */
+BOOL   sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc);/* put block to up buffer */
+void   CreateTestPattern(sm_layout* pSM, int tst_cntr);          /* initialize up data buffer */
 void   ReadDownstream(sm_layout* pSM);
 
 void   ByteSwap(char* Buf, int size);                                /* exchange high and low byte */
 void   UpstreamHeartbeat(sm_layout* pSM);
 
-BOOL   chk_msg_sta(int bsync,int nr_coc,short int rep_lev);        /* check: message output required */
+BOOL   chk_msg_sta(int bsync, int nr_coc, short int rep_lev);        /* check: message output required */
 int    lineParse(char *lineBuf, int line, dCoC *pCoC);
 short  bcd2d(short *pbcd, short *pto);        /* convert BCD to decimal */
 short  d2bcd(short *pdec, short *pto);        /* convert decimal to BCD */
@@ -315,7 +315,7 @@ short  d2bcd(short *pdec, short *pto);        /* convert decimal to BCD */
 //===========================================================================*/
 void ICP_version()
 {
-    printf("%s ",cvsid);
+    printf("%s ", cvsid);
     if (RemoteHeader)
         printf("with Remote Header\n");
     else
@@ -342,9 +342,9 @@ short bcd2d(short *pbcd, short *pto)
 //              and writes via pointer
 // Returns (-1) if conversion is impossible (e.i. 0 > dec > 999)
 //===========================================================================*/
-short d2bcd(short *pdec,short *pto)
+short d2bcd(short *pdec, short *pto)
 {
-    int local,dec = *pdec,tmp;
+    int local, dec = *pdec, tmp;
 
     if ((dec < 0) || (dec > 999)) return -1;
     tmp = dec/100;
@@ -388,7 +388,7 @@ void ICP_start(sm_layout* pSM,        /* allocated memory table */
         (int)ifName,    /* Interface name */
         (int)ifAddr,    /* Interface address */
         ifMask,        /* Interface mask */
-        0,0);
+        0, 0);
 #endif
     args.ConfCode = 0;
     args.pSM = pSM;
@@ -420,13 +420,13 @@ void ICP_start(sm_layout* pSM,        /* allocated memory table */
 int lineParse(char *lineBuf, int line, dCoC *pCoC)
 {
     char *rest = NULL, *pIPaddr;
-    int indx,IP_part,i,leng,rdSize = 0,wrSize = 0;
+    int indx, IP_part, i, leng, rdSize = 0, wrSize = 0;
     char IPaddr[16];
-    short id;
+    short id = -1;
     dCoC *pLoc = pCoC;
 
     if (TICP_debug)
-        errlogPrintf("ticp: lineParse: line='%s'\n",lineBuf);
+        errlogPrintf("ticp: lineParse: line='%s'\n", lineBuf);
 
 /* First check station number */
 
@@ -465,12 +465,12 @@ int lineParse(char *lineBuf, int line, dCoC *pCoC)
             /* IP address is valid */
 
                 id = IP_part,            /* store it as PLC id */
-                strncpy(IPaddr,pIPaddr,leng);    /* copy IP addr locally */
+                strncpy(IPaddr, pIPaddr, leng);    /* copy IP addr locally */
                 IPaddr[leng] = '\0';            /* terminate string */
 
                 if (TICP_debug)
                     errlogPrintf("ticp: lineParse: local IPaddr = '%s' id = %d\n",
-                        IPaddr,id);
+                        IPaddr, id);
 
             }
             else {
@@ -489,14 +489,14 @@ int lineParse(char *lineBuf, int line, dCoC *pCoC)
 
     /* Check the read/write blocks size */
 
-    rdSize = (int)strtol(rest,&rest,0);        /* get read Block Size */
+    rdSize = (int)strtol(rest,&rest, 0);        /* get read Block Size */
 
     if ((rdSize <= 0) || (rdSize > MAX_UP_BUF_SIZE * 2)) {
         errlogPrintf("ticp: lineParse: invalid rdBlockSize = %d\n", rdSize);
         return -1;
     }
 
-    wrSize = (int)strtol(rest,&rest,0);
+    wrSize = (int)strtol(rest,&rest, 0);
     if ((wrSize < 0) || (wrSize > MAX_DWN_BUF_SIZE * 2)) {
         errlogPrintf("ticp: lineParse: invalid wrBlockSize = %d\n", wrSize);
         return -1;
@@ -504,7 +504,7 @@ int lineParse(char *lineBuf, int line, dCoC *pCoC)
 
     if (TICP_debug)
         errlogPrintf("ticp: lineParse: rdSize = %d wrSize = %d\n",
-            rdSize,wrSize);
+            rdSize, wrSize);
 
     /* Parsered OK, fill in the client table element */
 
@@ -515,14 +515,14 @@ int lineParse(char *lineBuf, int line, dCoC *pCoC)
     if (indx) {
         while (indx--) pLoc++;
     }
-    strcpy(pLoc->ip_adr,IPaddr);  /* copy PLC IP address */
+    strcpy(pLoc->ip_adr, IPaddr);  /* copy PLC IP address */
     pLoc->rdBlSize = rdSize;      /* set read block size */
     pLoc->wrBlSize = wrSize;      /* set write block size */
     pLoc->id = id;                /* set PLC ID */
 
     if (TICP_debug)
         errlogPrintf("lineParse: set: task='%s' IP='%s' rdSize=%d wrSize=%d ID=%d conf=0x%x\n",
-            pLoc->task_name,pLoc->ip_adr,pLoc->rdBlSize,pLoc->wrBlSize,pLoc->id,RConfCode);
+            pLoc->task_name, pLoc->ip_adr, pLoc->rdBlSize, pLoc->wrBlSize, pLoc->id, RConfCode);
 
     return 0;
 }
@@ -554,9 +554,9 @@ void ticp (ticpArgs* args)
 
     IPAddrEnv = getenv(CONF_FILE_ENV);    /* Search for variable */
     if ((!IPAddrEnv) || (!(*IPAddrEnv)))
-       strcpy(FileName,CONF_FILE_NAME);        /* If no or file name is empty use default */
+       strcpy(FileName, CONF_FILE_NAME);        /* If no or file name is empty use default */
     else
-       strcpy(FileName,IPAddrEnv);
+       strcpy(FileName, IPAddrEnv);
 
     fdConf = fopen(FileName, "r");
     line = 1; RConfCode = 0;    /* RConfCode will be overwritten */
@@ -568,7 +568,7 @@ void ticp (ticpArgs* args)
                 line++;    /* Increment line counter */
                 continue;    /* Ignore comment lines */
             }
-            nok = lineParse(lineBuf,line,CoC);
+            nok = lineParse(lineBuf, line, CoC);
             if (nok)
                 errlogPrintf("ticp: line %d is ignored\n", line);
             else IPind++;        /* Increment IP index */
@@ -625,20 +625,20 @@ void ticp (ticpArgs* args)
     /* Test without s7 stations */
     tst_cntr = 0;
     if (TestMode != 0) {
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("\nStarting tiCP T E S T ::TestMode:%X sm_adr:%p\n",
-                TestMode,pSM);
+                TestMode, pSM);
         while (tst_cntr < 1) {
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("\n  tiCP T E S T Create Test Pattern ::tst_cntr:%d \n",
                     tst_cntr);
-            CreateTestPattern(pSM,tst_cntr);
+            CreateTestPattern(pSM, tst_cntr);
             ReadDownstream(pSM);
             epicsThreadSleep(DelayTicks1s);      /* wait 1s */
             UpstreamHeartbeat(pSM);
             tst_cntr++;
         }
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("\nEnding tiCP T E S T .\n");
         exit(0);
     }
@@ -646,8 +646,8 @@ void ticp (ticpArgs* args)
         sm_Init(pSM);
     }
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-        errlogPrintf("\nStarting tiCP ConfCode:%X\n",RConfCode);
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+        errlogPrintf("\nStarting tiCP ConfCode:%X\n", RConfCode);
 
     /* start communication with master station */
 
@@ -661,8 +661,8 @@ void ticp (ticpArgs* args)
                     (int)CoC[0].ip_adr,
                     SERVER_PORT_NUM,
                     (int)pSM,
-                    0,0,0,0,0,0,0);
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))errlogPrintf("ICP:> task 0 started.\n");
+                    0, 0, 0, 0, 0, 0, 0);
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))errlogPrintf("ICP:> task 0 started.\n");
     tidClient[0] = CoC[0].task_id;
     pSM->com_sta.status[H_ADR_ALIVE_CTR + 1] = TRUE;    /* set alive
                                 flag for the client 0 */
@@ -673,7 +673,7 @@ void ticp (ticpArgs* args)
     while (SmInitialized == FALSE) {
         if (msg_sent_once == FALSE) {
 
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP:>  wait until shared memory initialized .\n");
             msg_sent_once = TRUE;
         }
@@ -682,7 +682,7 @@ void ticp (ticpArgs* args)
 
         epicsThreadSleep(DelayTicks990ms);
     }
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         errlogPrintf("ICP:> shared memory initialized.\n");
 
 #endif
@@ -693,7 +693,7 @@ void ticp (ticpArgs* args)
     for (idx = 0;idx < MAX_COC;idx++) {    /* start all client tasks including 0 */
         if ((StationList & ConfCodeMask) != 0) {
 /*
-            CoC[idx].task_id = taskSpawn(CoC[idx].task_name,MED_PRI,0,STACK_SIZE,tcpClient,(int)CoC[idx].ip_adr,SERVER_PORT_NUM,(int)pSM,idx,0,0,0,0,0,0);
+            CoC[idx].task_id = taskSpawn(CoC[idx].task_name, MED_PRI, 0, STACK_SIZE, tcpClient,(int)CoC[idx].ip_adr, SERVER_PORT_NUM,(int)pSM, idx, 0, 0, 0, 0, 0, 0);
 */
             clientArgs[idx].serverIP = CoC[idx].ip_adr;
             clientArgs[idx].serverPortin = SERVER_PORT_NUM;
@@ -708,15 +708,15 @@ void ticp (ticpArgs* args)
             tidClient[idx] = CoC[idx].task_id;
             pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = TRUE;    /* set alive flag */
 
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-            errlogPrintf("ICP:> task %d started.\n",idx);
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+            errlogPrintf("ICP:> task %d started.\n", idx);
 
             epicsThreadSleep(DelayTicks5s);        /* delay for 5 sec */
         }
         ConfCodeMask = ConfCodeMask<<1;
     }
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         errlogPrintf("ICP:> all tasks started.\n");
 
     finalize = FALSE;
@@ -742,10 +742,10 @@ void ticp (ticpArgs* args)
 
                 if (TICP_debug)
                     errlogPrintf("ICP: idx=%d task '%s' IP='%s'\n",
-                        idx,CoC[idx].task_name,CoC[idx].ip_adr);
+                        idx, CoC[idx].task_name, CoC[idx].ip_adr);
 
                 if (epicsThreadIsSuspended(tidClient[idx])) {    /* if suspended delete it */
-                    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG)) {
+                    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG)) {
                         errlogPrintf("ICP:> task '%s' is suspended, try to delete it.\n",
                             CoC[idx].task_name);
                         epicsThreadSleep(DelayTicks50ms);
@@ -757,13 +757,13 @@ void ticp (ticpArgs* args)
                     pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = FALSE;    /* clear alive flag */
 
                     if (0/*taskDelete(tidClient[idx])*/) {
-                        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ERR))
+                        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
                             errlogPrintf("ICP:> suspended '%s' cannot be deleted.\n",
                                 CoC[idx].task_name);
 
                     }
                     else {
-                        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG)) {
+                        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG)) {
                             errlogPrintf("ICP:> task '%s' is deleted try to restart it.\n",
                                 CoC[idx].task_name);
                             epicsThreadSleep(DelayTicks50ms);
@@ -782,11 +782,11 @@ void ticp (ticpArgs* args)
 
             /* !!!! It should be changed if several ticp can be started */
 
-                if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+                if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     errlogPrintf("ICP:>restarting '%s' task: IP='%s'.\n",
-                        CoC[idx].task_name,CoC[idx].ip_adr);
+                        CoC[idx].task_name, CoC[idx].ip_adr);
 /*
-                CoC[idx].task_id = taskSpawn(CoC[idx].task_name,MED_PRI,0,STACK_SIZE,tcpClient,(int)CoC[idx].ip_adr,SERVER_PORT_NUM,(int)pSM,idx);
+                CoC[idx].task_id = taskSpawn(CoC[idx].task_name, MED_PRI, 0, STACK_SIZE, tcpClient,(int)CoC[idx].ip_adr, SERVER_PORT_NUM,(int)pSM, idx);
 */
                 CoC[idx].task_id = epicsThreadCreate(
                     CoC[idx].task_name,
@@ -798,18 +798,18 @@ void ticp (ticpArgs* args)
                 tidClient[idx] = CoC[idx].task_id;
                 pSM->com_sta.status[H_ADR_ALIVE_CTR + idx + 1] = TRUE;  /* set alive flag */
 
-                if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-                    errlogPrintf("ICP:> task %d restarted.\n",idx);
+                if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+                    errlogPrintf("ICP:> task %d restarted.\n", idx);
 
                 clientRestart[idx] = FALSE;    /* reset restart flag */
             }
         }
     }
 
-    /* Shutdown,Cleanup */
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))errlogPrintf("ICP:> start Shutdown.\n");
+    /* Shutdown, Cleanup */
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))errlogPrintf("ICP:> start Shutdown.\n");
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))errlogPrintf("ICP:> Shutdown finished.\n");
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))errlogPrintf("ICP:> Shutdown finished.\n");
     exit(0);
 }
 /*=============================================================================
@@ -834,9 +834,9 @@ STATUS tcpClient (tcpClientArgs* args)
 
     if (RemoteHeader) {
         /* bcopyWords(&pSM->sta_dwn[nr_coc].status[0],&sendBuf[0],(S_LEN)); */   /* copy the send header */
-        memcpy(sendBuf,pSM->sta_dwn[nr_coc].status,(2*S_LEN));    /* copy the send header */
+        memcpy(sendBuf, pSM->sta_dwn[nr_coc].status,(2*S_LEN));    /* copy the send header */
         if (SwapByte)
-            ByteSwap(sendBuf,2 * S_LEN);        /* swap bytes if necessary */
+            ByteSwap(sendBuf, 2 * S_LEN);        /* swap bytes if necessary */
         for (idx=2*S_LEN;idx<2*MAX_DWN_BUF_SIZE;idx++) {
             sendBuf[idx]=0x00;
         }
@@ -846,14 +846,14 @@ STATUS tcpClient (tcpClientArgs* args)
         }
     }
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-        errlogPrintf("\nICP:%d>  Starting TcpClient. Server: %s:%i\n",nr_coc,serverIP,serverPortin);
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+        errlogPrintf("\nICP:%d>  Starting TcpClient. Server: %s:%i\n", nr_coc, serverIP, serverPortin);
     if (serverPortin==0)
         serverPort=SERVER_PORT_NUM;            /* default */
     else
         serverPort=serverPortin;
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-        errlogPrintf("ICP:%d>  using Server Port %i\n",nr_coc,serverPort);
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+        errlogPrintf("ICP:%d>  using Server Port %i\n", nr_coc, serverPort);
 
     iRcvBlockCtr[nr_coc]=0;
     sFd[nr_coc]=0;
@@ -883,7 +883,7 @@ STATUS tcpClient (tcpClientArgs* args)
             {
                 perror("socket");
 
-                if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ERR))
+                if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
                     errlogPrintf("ICP:%d>  -1 create socket => Exiting Application.\n",
                         nr_coc);
                 epicsThreadSleep(DelayTicks5s);    /* 5 sec delay before termination */
@@ -891,20 +891,27 @@ STATUS tcpClient (tcpClientArgs* args)
                     Illegal instruction exeption */
             }
 
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-                errlogPrintf("ICP:%d> establish connection, IP='%s' port=%d. Try #%i...\n",
-                    nr_coc,serverIP,serverPort,iConnectLoop);
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+                errlogPrintf("ICP:%d> Try to connect to %s:%d on fd %d #%i...\n",
+                    nr_coc, serverIP, serverPort, sFd[nr_coc], iConnectLoop);
 
-            if (establishConnection(sFd[nr_coc],serverIP,serverPort) == -1)
+            if (establishConnection(sFd[nr_coc], serverIP, serverPort) == -1)
             {
-                errlogPrintf("ICP:%d> connect: errno = 0x%x\n", nr_coc, errno);
+                errlogPrintf("ICP:%d> connect to %s:%d failed: %s\n",
+                    nr_coc, serverIP, serverPort, strerror(errno));
                 if (close(sFd[nr_coc]))
-                    errlogPrintf("ICP:%d> close: errno = 0x%x\n", nr_coc, errno);
+                    errlogPrintf("ICP:%d> close fd %d failed: %s\n",
+                        nr_coc, sFd[nr_coc], strerror(errno));
                 sFd[nr_coc]=0;
                 epicsThreadSleep(DelayTicks990ms);
             }
             else
+            {
                 connectionOk=TRUE;
+                if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+                    errlogPrintf("ICP:%d> connected to %s:%d on fd %d\n",
+                        nr_coc, serverIP, serverPort, sFd[nr_coc]);
+            }
             iConnectLoop++;
         }
         while (!connectionOk);
@@ -914,14 +921,14 @@ STATUS tcpClient (tcpClientArgs* args)
         if (getsockname(sFd[nr_coc],(struct sockaddr *)&clientAddr,&len) == -1)
             perror("getsockname");
         else {
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))errlogPrintf("ICP:%d> connection established. Client port: %i\n",
-                                    nr_coc,ntohs(clientAddr.sin_port));
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))errlogPrintf("ICP:%d> connection established. Client port: %i\n",
+                                    nr_coc, ntohs(clientAddr.sin_port));
             pSM->com_sta.status[H_ADR_COC_STATUS + nr_coc] = CONNECTION_OK;
         }
 
         if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
             errlogPrintf("tcpClient %d: before 1-st read: IP='%s' port=%d\n",
-                nr_coc,serverIP,serverPort);
+                nr_coc, serverIP, serverPort);
 
         while (TRUE)                            /* send/receive loop */
         {
@@ -939,7 +946,7 @@ STATUS tcpClient (tcpClientArgs* args)
                 /* block the corresponding area of SM */
                 epicsMutexMustLock(pSM->semID_dwn[nr_coc]);
 
-                sm_BufGet(sendBuf,pSM,nr_coc);
+                sm_BufGet(sendBuf, pSM, nr_coc);
 
                 if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {    /**** debugging print out *****/
 
@@ -967,23 +974,24 @@ STATUS tcpClient (tcpClientArgs* args)
                 epicsMutexUnlock(pSM->semID_dwn[nr_coc]);
 
                 /* send data to server (S7) */
-                if (chk_msg_sta(RBN,nr_coc,REPORT_ALL))
+                if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
                     errlogPrintf ("ICP:%d> Message #%i to send: \n",
-                        nr_coc,iCommLoop);
+                        nr_coc, iCommLoop);
 
                 if ((iNumWritten=send(sFd[nr_coc], sendBuf, (block_length_dwn[nr_coc]), 0)) == -1)
                 {
-                    errlogPrintf("ICP:%d> send: errno = 0x%x\n", nr_coc,errno);
+                    errlogPrintf("ICP:%d> send %d bytes to fd % failed: %s\n",
+                        block_length_dwn[nr_coc], nr_coc, strerror(errno));
                     break;            /* exit the send/receive loop */
                 }
-                if (chk_msg_sta(RBN,nr_coc,REPORT_ALL))
+                if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
                     errlogPrintf("ICP:%d> Message of length %i sent\n",
-                        nr_coc,iNumWritten);
+                        nr_coc, iNumWritten);
             }
 
             /* check (with timeout) for data arrival from server */
 
-            iRC=wfTimeoutOrRxdata(sFd[nr_coc],nr_coc);
+            iRC=wfTimeoutOrRxdata(sFd[nr_coc], nr_coc);
             if (iRC <= 0) {       /* error or no data within timeout timeframe */
                 break;            /* exit the send/receive loop */
             }
@@ -992,19 +1000,19 @@ STATUS tcpClient (tcpClientArgs* args)
             if ((iNumRead=recv(sFd[nr_coc], recvBuf, block_length_up[nr_coc], 0)) < 0)
             {
                 errlogPrintf("ICP:%d> recv: errno = 0x%x\n",
-                    nr_coc,errno);
+                    nr_coc, errno);
                 break;            /* exit the send/receive loop */
             }
-            if (chk_msg_sta(RBN,nr_coc,REPORT_ALL))
+            if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
                 errlogPrintf ("ICP:%d>  Message received (length %i)\n",
-                    nr_coc,iNumRead);
+                    nr_coc, iNumRead);
 
             if (iNumRead > 0) {        /* some data (>0 bytes) received */
 
                 if (RemoteHeader) {
                     if (iNextrcvBlockEntry[nr_coc] == 0) {    /* New block starts */
                         if (SwapByte)
-                            ByteSwap(recvBuf,2 * S_LEN);        /* swap bytes in header if necessary */
+                            ByteSwap(recvBuf, 2 * S_LEN);        /* swap bytes in header if necessary */
 
                     /* check whether the PLC ID is correct */
 
@@ -1034,7 +1042,7 @@ STATUS tcpClient (tcpClientArgs* args)
                                 block_length_up[nr_coc] = pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT];
                             }
                             else {        /* Not valid byte counter */
-                                errlogPrintf("ICP:%d> BYTE_CNT is not valid = %d\n", nr_coc,rcvHeader->byteCnt);
+                                errlogPrintf("ICP:%d> BYTE_CNT is not valid = %d\n", nr_coc, rcvHeader->byteCnt);
                                 break;        /* shut down the connection */
                             }
                         }
@@ -1046,17 +1054,17 @@ STATUS tcpClient (tcpClientArgs* args)
 
                 /* copy received data to data block */
 
-                if (copyToRcvBlock(recvBuf,pSM,iNumRead,nr_coc))
+                if (copyToRcvBlock(recvBuf, pSM, iNumRead, nr_coc))
                 {
                     /* block end reached ? sync end message block */
                     if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-                        if (chk_msg_sta(RBE,nr_coc,REPORT_DIAG))
-                            errlogPrintf("ICP:%d> <<<<<<<<<<<<< \n",nr_coc);
+                        if (chk_msg_sta(RBE, nr_coc, REPORT_DIAG))
+                            errlogPrintf("ICP:%d> <<<<<<<<<<<<< \n", nr_coc);
                     iCommLoop++;
                     /* sync begin new message block */
                     if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-                        if (chk_msg_sta(RBB,nr_coc,REPORT_DIAG))
-                            errlogPrintf("ICP:%d> >>>>>>>>>>>>> Loop: %d\n",nr_coc,iCommLoop);
+                        if (chk_msg_sta(RBB, nr_coc, REPORT_DIAG))
+                            errlogPrintf("ICP:%d> >>>>>>>>>>>>> Loop: %d\n", nr_coc, iCommLoop);
                 }
 
                 /* unblock the corresponding area of SM */
@@ -1072,13 +1080,13 @@ STATUS tcpClient (tcpClientArgs* args)
 
         /* connection not ok; shut it down */
 
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ERR))
-            errlogPrintf("ICP:%d>  connection not ok; shut it down and retry\n",nr_coc);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
+            errlogPrintf("ICP:%d>  connection not ok; shut it down and retry\n", nr_coc);
         pSM->com_sta.status[H_ADR_COC_STATUS + nr_coc] = CONNECTION_NOK;
         if (shutdown(sFd[nr_coc], 2) == -1)
-            errlogPrintf("ICP:%d> shutdown errno = 0x%x\n",nr_coc,errno);
+            errlogPrintf("ICP:%d> shutdown failed: %s\n", nr_coc, strerror(errno));
         if (close (sFd[nr_coc]) == -1)
-            errlogPrintf("ICP:%d> close errno = 0x%x\n",nr_coc,errno);
+            errlogPrintf("ICP:%d> close failed: %s\n", nr_coc, strerror(errno));
         sFd[nr_coc]=0;
 
         /* wait some time (allow PLC to disconnect and get ready for new connection) */
@@ -1087,8 +1095,8 @@ STATUS tcpClient (tcpClientArgs* args)
         /* connection is shut down; try to re-establish */
     }/* forever */
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
-        errlogPrintf ("ICP:%d>  Correctly exiting TcpClient application.\n",nr_coc);
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
+        errlogPrintf ("ICP:%d>  Correctly exiting TcpClient application.\n", nr_coc);
     exit(0);    /* Korobov: return OK; causes Illegal instruction
                 exeption */
 }
@@ -1098,7 +1106,7 @@ STATUS tcpClient (tcpClientArgs* args)
 // Description: copy an entire data block from the internal buffer to the receive block
 // returncode:  none
 //===========================================================================*/
-BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize,int nr_coc)
+BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize, int nr_coc)
 {
     int i;
     BOOL block_finished = FALSE;
@@ -1111,7 +1119,7 @@ BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize,int nr_coc)
         iNextrcvBlockEntry[nr_coc]=(iNextrcvBlockEntry[nr_coc]+1) % (block_length_up[nr_coc]);    /* next entry */
         if (iNextrcvBlockEntry[nr_coc]==0) {        /* block end reached */
             iRcvBlockCtr[nr_coc]++;
-            while (sm_BufPut(rcvBlock[nr_coc],pSM,nr_coc)==FALSE) {};
+            while (sm_BufPut(rcvBlock[nr_coc], pSM, nr_coc)==FALSE) {};
             block_finished = TRUE;
         }
     }
@@ -1123,7 +1131,7 @@ BOOL copyToRcvBlock(char * pRcvBuffer, sm_layout* pSM, int iSize,int nr_coc)
 // Description: wait for Rx data on socket or timeout
 // returncode:  0 if timeout; <0 if error; >0 if data
 //===========================================================================*/
-int wfTimeoutOrRxdata(int sockD,int nr_coc)
+int wfTimeoutOrRxdata(int sockD, int nr_coc)
 {
     static struct timeval    to;
     int    iSelect;
@@ -1134,13 +1142,13 @@ int wfTimeoutOrRxdata(int sockD,int nr_coc)
     to.tv_sec=RECV_TIMEOUT;
     to.tv_usec=0;
     /* select returns when either the socket has data or the timeout elapsed */
-    if ((iSelect=select(sockD+1,&socklist,0,0,&to)) < 0)
+    if ((iSelect=select(sockD+1,&socklist, 0, 0,&to)) < 0)
     {
-        errlogPrintf("ICP:%d> select: errno = 0x%x\n", nr_coc,errno);
+        errlogPrintf("ICP:%d> select failed: %s\n", nr_coc, strerror(errno));
     }
     if (iSelect==0)            /* timed out */
     {
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ALL))errlogPrintf("ICP:%d>  select timed out.\n",nr_coc);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))errlogPrintf("ICP:%d>  select timed out.\n", nr_coc);
     }
     return iSelect;
 }
@@ -1196,7 +1204,7 @@ int cleanup(WIND_TCB *pTcb)
     for (i=0; i < MAX_COC; i++) {
         if (pTcb == (WIND_TCB *)tidClient[i]) {
         if (TICP_debug)
-            errlogPrintf("cleanup: tid = %x nr_coc = %d\n", pTcb,i);
+            errlogPrintf("cleanup: tid = %x nr_coc = %d\n", pTcb, i);
 
             tidClient[i] = 0;        /* clear saved tid */
             clientRestart[i] = TRUE;    /* set "restart client" flag */
@@ -1275,7 +1283,7 @@ BOOL sm_Init(sm_layout* pSM)
 // Description:     get block from down buffer
 //===========================================================================*/
 
-BOOL sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc)
+BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
 {
 
     /* copy to A32 slave memory */
@@ -1284,22 +1292,22 @@ BOOL sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc)
 /*      bcopyBytes((char *)&pSM->buf_dwn[nr_coc].data[2*S_LEN],&sendBuf[2*S_LEN],(block_length_dwn[nr_coc]-2*S_LEN)); */
         memcpy(&sendBuf[2*S_LEN],&pSM->buf_dwn[nr_coc].data[2*S_LEN],(block_length_dwn[nr_coc]-2*S_LEN));
         if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP:%d>  DWN: id %4d length %d\n",
-                    nr_coc,pSM->sta_up[nr_coc].status[H_ADR_PLC_ID],block_length_dwn[nr_coc]);
+                    nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID], block_length_dwn[nr_coc]);
     } else {
-/*      bcopyBytes((char *)pSM->buf_dwn[nr_coc].data,sendBuf,(block_length_dwn[nr_coc])); */
-        memcpy(sendBuf,pSM->buf_dwn[nr_coc].data,block_length_dwn[nr_coc]);
+/*      bcopyBytes((char *)pSM->buf_dwn[nr_coc].data, sendBuf,(block_length_dwn[nr_coc])); */
+        memcpy(sendBuf, pSM->buf_dwn[nr_coc].data, block_length_dwn[nr_coc]);
         if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP:%d> DWN: length: %d\n",
-                    nr_coc,block_length_dwn[nr_coc]);
+                    nr_coc, block_length_dwn[nr_coc]);
     }
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("ICP:%d>  DWN: data:\n", nr_coc);
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_dwn[nr_coc].data[0],
                 pSM->buf_dwn[nr_coc].data[1],
@@ -1307,7 +1315,7 @@ BOOL sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc)
                 pSM->buf_dwn[nr_coc].data[3],
                 pSM->buf_dwn[nr_coc].data[4],
                 pSM->buf_dwn[nr_coc].data[5]);
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_dwn[nr_coc].data[6],
                 pSM->buf_dwn[nr_coc].data[7],
@@ -1321,7 +1329,7 @@ BOOL sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc)
         if (RemoteHeader)
             ByteSwap(&sendBuf[2*S_LEN],(block_length_dwn[nr_coc]-2*S_LEN));
         else
-            ByteSwap(sendBuf,block_length_dwn[nr_coc]);
+            ByteSwap(sendBuf, block_length_dwn[nr_coc]);
     }
     return TRUE;
 }
@@ -1330,44 +1338,44 @@ BOOL sm_BufGet(char* sendBuf,sm_layout* pSM,int nr_coc)
 // Function:        sm_BufPut
 // Description:     put block to up buffer
 //===========================================================================*/
-BOOL sm_BufPut(char* recvBuf,sm_layout* pSM,int nr_coc)
+BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
 {
 
     /* copy to A32 slave memory */
 
     if (SwapByte)
-        ByteSwap(recvBuf,block_length_up[nr_coc]);
+        ByteSwap(recvBuf, block_length_up[nr_coc]);
 
-/*  bcopyBytes(recvBuf,(char *)pSM->buf_up[nr_coc].data,block_length_up[nr_coc]); */
-    memcpy(pSM->buf_up[nr_coc].data,recvBuf,block_length_up[nr_coc]);
+/*  bcopyBytes(recvBuf,(char *)pSM->buf_up[nr_coc].data, block_length_up[nr_coc]); */
+    memcpy(pSM->buf_up[nr_coc].data, recvBuf, block_length_up[nr_coc]);
 
     SmInitialized = TRUE;
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (RemoteHeader) {
-            if (chk_msg_sta(RBB,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBB, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP:%d> PLC ID=%d UP_BYTE_CNT=%d DWN_BYTE_CNT=%d\n",
-            nr_coc,pSM->sta_up[nr_coc].status[H_ADR_PLC_ID],
+            nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID],
             pSM->sta_up[nr_coc].status[H_ADR_BYTE_CNT],
             pSM->sta_dwn[nr_coc].status[H_ADR_BYTE_CNT]);
         } else {
-            if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+            if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                 errlogPrintf("ICP:%d> UP: length: %d\n",
-            nr_coc,block_length_up[nr_coc]);
+            nr_coc, block_length_up[nr_coc]);
         }
 
-        if (chk_msg_sta(RBN,nr_coc,REPORT_DIAG))
+        if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
             errlogPrintf("ICP:%d>  sm_BufPut::com_status::alive_ctr: %4d\n",
-                nr_coc,pSM->com_sta.status[H_ADR_ALIVE_CTR]);
+                nr_coc, pSM->com_sta.status[H_ADR_ALIVE_CTR]);
 
-        if (chk_msg_sta(RBN,nr_coc,REPORT_DIAG))
+        if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
             errlogPrintf("ICP:%d>  sm_BufPut::com_status::alive_ctr[%d]: %4d\n",
-                nr_coc,nr_coc,pSM->com_sta.status[H_ADR_ALIVE_CTR+nr_coc+1]);
+                nr_coc, nr_coc, pSM->com_sta.status[H_ADR_ALIVE_CTR+nr_coc+1]);
 
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("ICP:%d>  UP 0x%x: data:\n",
-                nr_coc,pSM->sta_up[nr_coc].status[H_ADR_PLC_ID]);
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+                nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID]);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_up[nr_coc].data[0],
                 pSM->buf_up[nr_coc].data[1],
@@ -1375,7 +1383,7 @@ BOOL sm_BufPut(char* recvBuf,sm_layout* pSM,int nr_coc)
                 pSM->buf_up[nr_coc].data[3],
                 pSM->buf_up[nr_coc].data[4],
                 pSM->buf_up[nr_coc].data[5]);
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_up[nr_coc].data[6],
                 pSM->buf_up[nr_coc].data[7],
@@ -1413,13 +1421,13 @@ void UpstreamHeartbeat(sm_layout* pSM)
     short localUheartbeat;
 
 #if 0
-    bcopy((char*)(&((*pSM).com_sta.status[H_ADR_ALIVE_CTR])),(char*)&localUheartbeat,sizeof(short)); /* get current heartbeat ctr */
+    bcopy((char*)(&((*pSM).com_sta.status[H_ADR_ALIVE_CTR])),(char*)&localUheartbeat, sizeof(short)); /* get current heartbeat ctr */
 #endif
     localUheartbeat = pSM->com_sta.status[H_ADR_ALIVE_CTR];
     localUheartbeat++;
 
 #if 0
-    bcopy((char*)&localUheartbeat,(char*)(&((*pSM).com_sta.status[H_ADR_ALIVE_CTR])),sizeof(short)); /* set current heartbeat ctr */
+    bcopy((char*)&localUheartbeat,(char*)(&((*pSM).com_sta.status[H_ADR_ALIVE_CTR])), sizeof(short)); /* set current heartbeat ctr */
 #endif
     pSM->com_sta.status[H_ADR_ALIVE_CTR] = localUheartbeat;
 
@@ -1429,14 +1437,14 @@ void UpstreamHeartbeat(sm_layout* pSM)
 // Function:        CreateTestPattern
 // Description:     create test pattern for up buffer
 //===========================================================================*/
-void CreateTestPattern(sm_layout* pSM,int tst_cntr)
+void CreateTestPattern(sm_layout* pSM, int tst_cntr)
 {
     int nr_coc;
     int idx;
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_DIAG))
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
         printf("\nICP:Create Test Pattern :: size: %d max_coc:%d up_size:%d dwn_size:%d \n",
-            sizeof(sm_layout),MAX_COC,sizeof(sm_data_up),sizeof(sm_data_dwn));
+            sizeof(sm_layout), MAX_COC, sizeof(sm_data_up), sizeof(sm_data_dwn));
     /* create test pattern */
 
     /* Korobov: DEBUG */
@@ -1463,21 +1471,21 @@ void    ReadDownstream(sm_layout* pSM)
     int nr_coc;
     int idx;
 
-    if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ALL))printf("ICP: ReadDownstream:: \n");
+    if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))printf("ICP: ReadDownstream:: \n");
 
     for(nr_coc =0;nr_coc <MAX_COC;nr_coc++) {
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ALL))printf("ICP%2d> DWN : data ",nr_coc);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))printf("ICP%2d> DWN : data ", nr_coc);
         for (idx =0;idx < 16;idx ++) {
-                if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ALL))printf(" %4X",pSM->buf_dwn[nr_coc].data[idx]);
+                if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))printf(" %4X", pSM->buf_dwn[nr_coc].data[idx]);
         }
-        if (chk_msg_sta(RBN,REP_ALL_COC,REPORT_ALL))printf("\n");
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))printf("\n");
     }
 }
 /*=============================================================================
 // Function:        check_msg_sta
 // Description:     check if message out required
 //===========================================================================*/
-BOOL chk_msg_sta(int bsync,int nr_coc,short int rep_lev)
+BOOL chk_msg_sta(int bsync, int nr_coc, short int rep_lev)
 {
     if ((nr_coc == REP_ALL_COC)&&(RepLev >= rep_lev)) return TRUE;
 
