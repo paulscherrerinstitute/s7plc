@@ -1,0 +1,563 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>S7plc EPICS driver</title>
+<meta content="iso-8859-1" http-equiv="charset">
+<meta name="author" content="Dirk Zimoch">
+<style>
+<!--
+pre,code {color:green;}
+-->
+</style>
+</head>
+<body>
+<h1>S7plc EPICS driver documentation</h1>
+<p>
+This driver was written to connect a Siemens S7 PLC (programmable
+logic controller) via TCP/IP to an EPICS IOC. However, it can be used for
+any device sending and receiving blocks of process variables (PVs) in the
+same way.
+</p>
+<p>
+The driver was originally developped for SLS (Swiss Light Source) in 2000.
+Later is has been modified by DESY (Deutsches Elektronen Synchrotron). The
+current version has been completely rewritten for PPT (Puls-Plasmatechnik GmbH)
+to run on a R3.14.6 PC based system, but it can also run on R3.13 vxWorks
+system. Current author is
+<a href="mailto:Dirk Zimoch <dirk.zimoch&#64;psi&#46;ch>">Dirk Zimoch</a>.
+</p>
+<p>
+In this document, it is assumed that the reader is familiar with EPICS, the
+record concept and meanings of the fields of the standard records.
+Recommended documentation: EPICS Record Refecrence Manual.
+</p>
+<h2>1 Driver Configuration</h2>
+<p>
+In the IOC startup script, the s7plc driver needs to be configured:
+<pre>
+  s7plcConfigure <i>name</i>,<i>IPaddr</i>,<i>port</i>,<i>inSize</i>,<i>outSize</i>,<i>bigEndian</i>,<i>recvTimeout</i>,<i>sendIntervall</i>
+</pre>
+</p>
+<p>
+<code><i>name</i></code> is a symbolic name for the PLC running a server
+TCP socket on <code><i>IPaddr</i>:<i>port</i></code>. The records
+reference the PLC with this name in their <code>INP</code> or
+<code>OUT</code> link.
+</p>
+<p>
+<code><i>inSize</i></code> and <code><i>outSize</i></code> are the data block
+sizes in bytes read from and sent to the PLC, respectively. Any of them can
+be <code>0</code>. Byte order is defined by <code><i>bigEndian</i></code>. If
+this is <code>1</code>, the IOC expects the PLC to send and receive any
+multibyte PV (word, float, etc) most significant byte first. If it is
+<code>0</code>, the data is least significant byte first. This is independent
+of the byte order of the IOC.
+</p>
+<p>
+If the IOC does not receive new data from PLC for
+<code><i>recvTimeout</i></code> milliseconds, it closes the connection and
+tries to reopen it after a few seconds. All input records connected to this
+PLC become <code>INVALID</code> the next time they process.
+<code><i>recvTimeout</i></code> sould be 2 to 5 times the send intervall of
+the plc.
+</p>
+<p>
+The IOC checks for data to send every <code><i>sendIntervall</i></code>
+milliseconds. If any output record has been processed, the complete
+buffer is sent to the PLC. If no new output is available, nothing is sent.
+</p>
+
+<h2>2 Device Support</h2>
+<p>
+The driver supports the standard record types <a href="#ai">ai</a>,
+<a href="#ao">ao</a>, <a href="#bi">bi</a>, <a href="#bo">bo</a>,
+<a href="#mbbi">mbbi</a>, <a href="#mbbo">mbbo</a>,
+<a href="#mbbiDirect">mbbiDirect</a>, <a href="#mbboDirect">mbboDirect</a>,
+<a href="#longin">longin</a>, <a href="#longout">longout</a>,
+<a href="#stringin">stringin</a>, <a href="#stringout">stringout</a>,
+and <a href="#waveform">waveform</a>. The <code>DTYP</code> is
+<code>"S7plc"</code>. If the record processes when the PLC is not connected
+(off, down, unreachable), the record raises an alarm with
+<code>SEVR="INVALID"</code> and <code>STAT="CONN"</code>.
+</p>
+<p>
+There is also a connection status support for <a href="#stat">bi</a>. The
+<code>DTYP</code> is <code>"S7plc&nbsp;stat"</code>. This record does not
+raise an alarm when the PLC is disconnected. It just changes to
+<code>0</code> state in that case.
+</p>
+<p>
+<code>SCAN="I/O Intr</code> is supported. Whenever input data is received
+from a PLC, all <code>"I/O Intr</code> input records connected to this PLC
+are processed. In each output cyle, all <code>"I/O Intr</code> output
+records are processed.
+</p>
+<p>
+The general form of the <code>INP</code> or <code>OUT</code> link is
+</p>
+<pre>
+  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>low</i> L=<i>high</i> B=<i>bit</i>"
+</pre>
+<p>
+Not all parameters <code>T</code>, <code>L</code>, <code>H</code>, and
+<code>B</code> are required for each record type and parameters equal to the
+default value may be omitted. The default values depend on the record type.
+</p>
+<p>
+<code><i>name</i></code> is the PLC name as defined by
+<code>s7plcConfigure</code> in the startup script.
+</p>
+<p>
+<code><i>offset</i></code> is the byte offset of the PV relative to the
+beginning of the input or output data block for this PLC. It is an integer
+number or a sum of integer numbers like <code>20+3+2</code>.
+</p>
+<p>
+<code>T=<i>type</i></code> defines the data type for transmitting the PV
+from or to the PLC. It is not case sensitive and has several aliases (see
+table <a href="#type">below</a>).
+The default is <code>T=INT16</code> for most record types.
+<code>L=<i>low</i></code> and <code>H=<i>high</i></code> are used in analog
+input and output records if <code>LINR="LINEAR"</code> to convert analog
+values to integer values and back. They define the raw values which
+correspond to <code>EGUL</code> and <code>EGUF</code>, respectively.
+Output records will never write integer values lower than
+<code><i>low</i></code> or higher than <code><i>high</i></code>. If
+necessary, the raw output value is truncated to the nearest limit. The
+default values for <code><i>low</i></code> and <code><i>high</i></code>
+depend on <code>T=<i>type</i></code>.
+</p>
+<a name="type">
+<p align=center>
+<table border=1 cellpadding=5>
+<tr>
+<th>T=</th><th>Data Type</th><th>Default L=</th><th>Default H=</th>
+</tr>
+<tr>
+ <td><tt>INT8</tt>
+ </td><td>8 bit (1 byte) signed integer number</td>
+ <td><tt>-0x7F</tt></td><td><tt>0x7F</tt></td>
+</tr>
+<tr>
+ <td><tt>UINT8<br>UNSIGN8<br>BYTE<br>CHAR</tt>
+ </td><td>8 bit (1 byte) unsigned integer number</td>
+ <td><tt>0x00</tt></td><td><tt>0xFF</tt></td>
+</tr>
+<tr>
+ <td><tt>INT16<br>SHORT</tt></td>
+ <td>16 bit (2 bytes) signed integer number</td>
+ <td><tt>-0x7FFF</tt></td><td><tt>0x7FFF</tt></td>
+</tr>
+<tr>
+ <td><tt>UINT16<br>UNSIGN16<br>WORD</tt></td>
+ <td>16 bit (2 bytes) unsigned integer number</td>
+ <td><tt>0x0000</tt></td><td><tt>0xFFFF</tt></td>
+</tr>
+<tr>
+ <td><tt>INT32<br>LONG</tt></td>
+ <td>32 bit (4 bytes) signed integer number</td>
+ <td><tt>-0x7FFFFFFF</tt></td><td><tt>0x7FFFFFFF</tt></td>
+</tr>
+<tr>
+ <td>UINT32<br>UNSIGN32<br>DWORD</td>
+ <td>32 bit (4 bytes) unsigned integer number</td>
+ <td><tt>0x00000000</tt></td><td><tt>0xFFFFFFFF</tt></td>
+</tr>
+<tr>
+ <td><tt>REAL32<br>FLOAT32<br>FLOAT</tt></td>
+ <td>32 bit (4 bytes) floating point number</td>
+ <td>N/A</td><td>N/A</td>
+</tr>
+<tr>
+ <td><tt>REAL64<br>FLOAT64<br>DOUBLE</tt></td>
+ <td>64 bit (8 bytes) floating point number</td>
+ <td>N/A</td><td>N/A</td>
+</tr>
+<tr>
+ <td>STRING</td>
+ <td>character array</td>
+ <td>40</td><td>N/A</td>
+</tr>
+</table>
+</p>
+</a>
+<p>
+If <code>T=STRING</code>, <code>L</code> means <i>length</i>, not <i>low</i>.
+The default value is the length of the <code>VAL</code> field.
+In the case of the stringin and stringout records, this is 40 (including
+the terminating null byte).
+</p>
+<p>
+<code>B=<i>bit</i></code> is only used for bi and bo records to define the
+bit number within the data byte, word, or doubleword (depending on
+<code>T=<i>type</i></code>). Bit number 0 is the least significant bit.
+Note that in big endian encoding (also known as motorola encoding) bit 0 is
+in the last byte, while in little endian encoding (intel encoding) bit 0 is
+in the first byte. If in doubt, use <code>T=BYTE</code> to avoid all
+byte order problems when handling single bits.
+</p>
+<a name="stat"><h3>2.1 Connection Status</h3></a>
+<pre>
+  record (bi, "$(RECORDNAME)") {
+    field (DTYP, "S7plc stat")
+    field (INP,  "@<i>name</i>")
+    field (SCAN, "I/O Intr")
+  }
+</pre>
+<p>
+The record value is 1 if a connection to the PLC is established and 0 if not.
+Disconnect does not raise an alarm.
+</p>
+
+<a name="ai"><h3>2.2 Analog Input</h3></a>
+<pre>
+  record (ai, "$(RECORDNAME)") {
+    field (DTYP, "S7plc")
+    field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>low</i> L=<i>high</i>")
+    field (SCAN, "I/O Intr")
+    field (LINR, "Linear")
+    field (EGUL, "$(MINVAL)")
+    field (EGUF, "$(MAXVAL)")
+  }
+
+  record (ai, "$(RECORDNAME)") {
+    field (DTYP, "S7plc")
+    field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+    field (SCAN, "I/O Intr")
+  }
+</pre>
+<p>
+Default is <code>T=INT16</code>. Defaults for <code><i>low</i></code> and
+<code><i>high</i></code> depend on <code><i>type</i></code>
+(see table <a href="#type">above</a>).
+</p>
+<p>If <code><i>type</i></code> is an integer type, the
+PV is read into <code>RVAL</code>. If <code>LINR="LINEAR"</code>, then
+<code>RVAL</code> is converted to <code>VAL</code> depending on
+<code><i>low</i></code>, <code><i>high</i></code>, <code>EGUL</code>,
+and <code>EGUF</code>:
+<code>RVAL=<i>low</i></code> converts to <code>VAL=EGUL</code> and
+<code>RVAL=<i>high</i></code> converts to <code>VAL=EGUF</code>.
+</p>
+<p>If <code><i>type</i></code> is <code>FLOAT</code> or <code>DOUBLE</code>,
+the PV is read into <code>VAL</code> and <code>L</code>, <code>H</code>,
+<code>EGUL</code> and <code>EGUF</code> are ignored. However, the
+device support emulates scaling (<code>*ASLO+AOFF</code>) and smoothing
+(<code>*(1-SMOO)+VAL*SMOO</code>) which is otherwise done
+by the record support when converting integer value to analog values.
+
+</p>
+<p>
+<code>T=STRING</code> is not valid for ai records.
+</p>
+
+<a name="ao"><h3>2.3 Analog Output</h3></a>
+<pre>
+  record (ao, "$(RECORDNAME)") {
+    field (DTYP, "S7plc")
+    field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>low</i> L=<i>high</i>")
+    field (LINR, "Linear")
+    field (EGUL, "$(MINVAL)")
+    field (EGUF, "$(MAXVAL)")
+  }
+
+  record (ao, "$(RECORDNAME)") {
+    field (DTYP, "S7plc")
+    field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+  }
+</pre>
+<p>
+Default is <code>T=INT16</code>. Defaults for <code><i>low</i></code> and
+<code><i>high</i></code> depend on <code><i>type</i></code>
+(see table <a href="#type">above</a>).
+</p>
+<p>If <code><i>type</i></code> is an integer type, <code>RVAL</code> is
+written to the PV. If <code>LINR="LINEAR"</code>, then <code>OVAL</code>
+is converted to <code>RVAL</code> depending on <code><i>low</i></code>,
+<code><i>high</i></code>, <code>EGUL</code>, and <code>EGUF</code>:
+<code>OVAL=EGUL</code> converts to <code>RVAL=<i>low</i></code> and
+<code>OVAL=EGUF</code> converts to <code>RVAL=<i>high</i></code>.
+If <code>RVAL</code> is higher than <code><i>high</i></code> or lower than
+<code><i>low</i></code>, the value is truncated to the nearest limit.
+</p>
+<p>If <code><i>type</i></code> is <code>FLOAT</code> or <code>DOUBLE</code>,
+<code>OVAL</code> is written to the PV <code>L</code>, <code>H</code>,
+<code>EGUL</code> and <code>EGUF</code> are ignored. However, the
+device support emulates scaling (<code>-AOFF/ASLO</code>) which is otherwise
+done by the record support when converting analog value to integer values.
+</p>
+<p>
+<code>T=STRING</code> is not valid for ao records.
+</p>
+
+<a name="bi"><h3>2.4 Binary Input</h3></a>
+<pre>
+ record(bi, "$(NAME)") {
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i> B=<i>bit</i>")
+ }
+</pre>
+<p>
+Default is <code>T=INT16 B=0</code>.
+</p>
+<p>
+Depending on <code><i>type</i></code>, <code><i>bit</i></code> can vary from 0 to 7,
+15, or 31. Bit 0 is the least significant bit.
+</p>
+<p>The PV is read to <code>RVAL</code> and masked with
+2<sup><code><i>bit</i></code></sup>. <code>VAL</code> is 1 if <code>RVAL</code> is not 0.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for bi records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="bo"><h3>2.5 Binary Output</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i> B=<i>bit</i>")
+</pre>
+<p>
+Default is <code>T=INT16 B=0</code>.
+</p>
+<p>
+Depending on <code><i>type</i></code>, <code><i>bit</i></code> can vary from 0 to 7,
+15, or 31. Bit 0 is the least significant bit.
+</p>
+<p>If <code>VAL</code> is not 0, then <code>RVAL</code> is set to
+2<sup><code><i>bit</i></code></sup>, else <code>RVAL</code> is set to 0.
+Only the referenced bit of the PV is changed while all other bits remain
+untouched. Thus, other bo records can refer to different bits of the same PV.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for bo records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="mbbi"><h3>2.6 Multibit Binary Input</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>The PV is read to <code>RVAL</code>, shifted right by <code>SHFT</code> bits and
+masked with <code>NOBT</code> bits. Valid values for <code>NOBT</code> and
+<code>SHFT</code> depend on <code><i>type</i></code>: <code>NOBT</code>+<code>SHFT</code> must
+not exceed the number of bits of <code><i>type</i></code>.
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for mbbi records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="mbbo"><h3>2.7 Multibit Binary Output</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>RVAL is masked with <code>NOBT</code> bits, shifted left by <code>SHFT</code> bits
+and written to the PV. Valid values for <code>NOBT</code> and <code>SHFT</code> depend
+on <code><i>type</i></code>: <code>NOBT</code>+<code>SHFT</code> must not exceed the
+number of bits of <code><i>type</i></code>.
+</p>
+Only the referenced <code>NOBT</code> bits of the PV are changed. All other bits
+remain untouched. Thus, bo records or other mbbo records can refer to different
+bits of the same PV.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for mbbo records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="mbbiDirect"><h3>2.8 Multibit Binary Input Direct</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>The PV is read to <code>VAL</code>, shifted right by <code>SHFT</code> bits and
+masked with <code>NOBT</code> bits. Valid values for <code>NOBT</code> and
+<code>SHFT</code> depend on <code><i>type</i></code>: <code>NOBT</code>+<code>SHFT</code> must
+not exceed the number of bits of <code><i>type</i></code>.
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for mbbiDirect records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="mbboDirect"><h3>2.9 Multibit Binary Output Direct</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>VAL is masked with <code>NOBT</code> bits, shifted left by <code>SHFT</code> bits
+and written to the PV. Valid values for <code>NOBT</code> and <code>SHFT</code> depend
+on <code><i>type</i></code>: <code>NOBT</code>+<code>SHFT</code> must not exceed the
+number of bits of <code><i>type</i></code>.
+</p>
+Only the referenced <code>NOBT</code> bits of the PV are changed. All other bits
+remain untouched. Thus, bo records, mbbo records or other mbboDirect records
+can refer to different bits of the same PV.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for mbboDirect records. Signed or unsigned types are equivalent.
+</p>
+
+<a name="longin"><h3>2.10 Long Input</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>
+The PV is read to <code>VAL</code>. Depending on <code><i>type</i></code>,
+<code>VAL</code> is sign extended or zero extended.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for longin records.
+</p>
+
+<a name="longout"><h3>2.11 Long Output</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i>")
+</pre>
+<p>
+Default is <code>T=INT16</code>.
+</p>
+<p>
+Depending on <code><i>type</i></code>, the least significant 1, 2, or 4 bytes
+of <code>VAL</code> are written to the PV.
+</p>
+<p>
+<code>T=STRING</code>, <code>FLOAT</code> or <code>DOUBLE</code> are not valid
+for longout records.
+</p>
+
+<a name="stringin"><h3>2.12 String Input</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>length</i>")
+</pre>
+<p>
+Default and only valid <code><i>type</i></code> is <code>T=STRING</code>. Default
+<code><i>length<i></code> is 40.
+</p>
+<p>
+<code><i>length<i></code> bytes are read from the PV to <code>VAL</code> and null
+terminated. Thus, the effective string length is maximal
+<code><i>length<i></code>-1 bytes.
+</p>
+
+<a name="stringout"><h3>2.13 String Output</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (OUT,  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>length</i>")
+</pre>
+<p>
+Default and only valid <code><i>type</i></code> is <code>T=STRING</code>. Default
+<code><i>length<i></code> is 40.
+</p>
+<p>
+<code><i>length<i></code> bytes are written from <code>VAL</code> to the PV.
+If the actual string length is shorter than <code><i>length<i></code>,
+the remaining space is filled with null bytes.
+</p>
+
+<a name="waveform"><h3>2.14 Waveform</h3></a>
+<pre>
+  field (DTYP, "S7plc")
+  field (INP,  "@<i>name</i>/<i>offset</i> T=<i>type</i> L=<i>length</i>")
+</pre>
+<p>
+The default <code><i>type</i></code> depends on <code>FTVL</code>.
+<code><i>length</i></code> is only used if <code>T=STRING</code> and defaults
+to <code>NELM</code>.
+</p>
+<p>
+<code>NELM</code> elements are read from the PV to <code>VAL</code>.
+</p>
+<p>
+The special <code><i>type</i></code> <code>T=TIME</code> is supported for waveforms
+records only. <code>FTVL</code> must be <code>"CHAR"</code> or <code>"UCHAR"</code> and
+<code>NELM</code> should be <code>"8"</code>. Eight bytes are converted from BCD
+(binary coded decimal) to 8 bit integer values in the range from 0 to 99 each.
+This type is intended to transfer BCD coded real time clock timestamps.
+</p>
+<p>
+If <code>T=STRING</code>, <code>FTVL</code> must be <code>"CHAR"</code> or
+<code>"UCHAR"</code>. <code><i>length</i></code> characters are read to <code>VAL</code>.
+<code><i>length</i></code> must not exceed <code>NELM</code>.
+</p>
+<p>
+<code>FTVL="STRING"</code> is not supported.
+</p>
+
+<h2>3 Driver Functions</h2>
+<p>
+New record types can be supported with calls to the driver functions.
+</p>
+<ul>
+<pre>
+s7plcStation *s7plcOpen (char *name, unsigned int stationNumber);
+
+int s7plcRead (s7plcStation *station, unsigned int offset, unsigned int dleng, void* pdata);
+
+int s7plcReadArray (s7plcStation *station, unsigned int offset, unsigned int dleng, unsigned int nelem, void* pdata);
+
+int s7plcWrite (s7plcStation *station, unsigned int offset, unsigned int dleng, void* pdata);
+
+int s7plcWriteMasked (s7plcStation *station, unsigned int offset, unsigned int dleng, void* pdata, void* pmask);
+
+int s7plcWriteArray (s7plcStation *station, unsigned int offset, unsigned int dleng, unsigned int nelem, void* pdata);
+
+int s7plcWriteMaskedArray (s7plcStation *station, unsigned int offset, unsigned int dleng, unsigned int nelem, void* pdata, void* pmask);
+</pre>
+</ul>
+<p>
+<code>s7plcRead()</code>, <code>s7plcWrite()</code>,
+<code>s7plcWriteMasked()</code>, and <code>s7plcWriteArray()</code>
+are actually macros for
+<code>s7plcReadArray()</code> and <code>s7plcWriteMaskedArray()</code> with
+<code>nelem=1</code> and/or <code>mask=NULL</code>.
+</p>
+<p>
+<code>station</code> is a handle previously obtained by a call to
+<code>s7plcOpen()</code>.
+</p>
+<p>
+<code>offset</code> is the byte offset of the PV relative
+to the beginning to the data block.
+</p>
+<p>
+<code>dleng</code> is the length of data type in bytes. If the endianess of the PLC
+differs fron the ioc, the byte order of the <code>dleng</code> bytes is swapped.
+</p>
+<p>
+<code>nelem</code> is the number of elements in an array.
+</p>
+<p>
+<code>pdata</code> is a pointer to a buffer of <code>nelem</code>*<code>dleng</code> bytes.
+PVs are read to or written from this buffer.
+</p>
+<p>
+<code>mask</code> is a pointer to a bitmask of <code>dleng</code> bytes. Only those
+bits are written where the mask contains 1 bits. All other bits remain
+untouched.
+</p>
+
+<a name="end"></a>
+</body>
+</html>
