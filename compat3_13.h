@@ -11,9 +11,9 @@
 #define epicsMutexId SEM_ID
 #define epicsThreadId int
 #define EPICSTHREADFUNC FUNCPTR
-#define epicsThreadPriorityLow    200
-#define epicsThreadPriorityMedium 100
-#define epicsThreadPriorityHigh   20
+#define epicsThreadPriorityLow    10
+#define epicsThreadPriorityMedium 50
+#define epicsThreadPriorityHigh   90
 #define epicsUInt8 uint8_t
 #define epicsUInt16 uint16_t
 
@@ -42,7 +42,7 @@
 #define epicsStrDup(s) strcpy(malloc(strlen(s)+1),(s))
 
 #define epicsThreadCreate(name, pri, stack, func, args) \
-    taskSpawn(name, pri, VX_FP_TASK, stack, func, (int)(args), \
+    taskSpawn(name, 255-(pri)*255/99, VX_FP_TASK, stack, func, (int)(args), \
     0,0,0,0,0,0,0,0,0)
 
 #define epicsThreadSleep(sec) taskDelay((sec)*sysClkRateGet())
