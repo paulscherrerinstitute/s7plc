@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 15:38:24 $ */
-/* $Id: tiCP.c,v 1.9 2005/02/28 15:38:24 zimoch Exp $ */
+/* $Date: 2005/03/01 16:42:32 $ */
+/* $Id: tiCP.c,v 1.10 2005/03/01 16:42:32 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.9 $ */
+/* $Revision: 1.10 $ */
 
 
 /*=============================================================================
@@ -202,7 +202,8 @@ typedef struct {
 } ticpArgs;
 
 typedef struct {
-    char *serverIP;
+    char taskName[20];
+    char serverIP[20];
     int serverPortin;
     sm_layout* pSM;
     int nr_coc;
@@ -217,7 +218,7 @@ typedef struct {
 
 /* run-time debugging printout switch */
 
-int TICP_debug = 0;
+int TICP_debug = 1;
 
 /*------------------------------------------*/
 /*=============================================================================
@@ -225,7 +226,7 @@ int TICP_debug = 0;
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.9 2005/02/28 15:38:24 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.10 2005/03/01 16:42:32 zimoch Exp $";
 
 static tcpClientContext clientContext [MAX_COC];
 static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv data */       
@@ -249,25 +250,6 @@ static BOOL cmd_msg_out;                /*  command: send new message block */
 int     TICP_RepLevel = 4;              /*  report level */
 int     TICP_RepStation = 0;            /*  report channel */
 
-static dCoC CoC[] = {
-        {"TcpClient 0","", 0, 0, 0},
-        {"TcpClient 1","", 0, 0, 0},
-        {"TcpClient 2","", 0, 0, 0},
-        {"TcpClient 3","", 0, 0, 0},
-        {"TcpClient 4","", 0, 0, 0},
-        {"TcpClient 5","", 0, 0, 0},
-        {"TcpClient 6","", 0, 0, 0},
-        {"TcpClient 7","", 0, 0, 0},
-        {"TcpClient 8","", 0, 0, 0},
-        {"TcpClient 9","", 0, 0, 0},
-        {"TcpClient 10","", 0, 0, 0},
-        {"TcpClient 11","", 0, 0, 0},
-        {"TcpClient 12","", 0, 0, 0},
-        {"TcpClient 13","", 0, 0, 0},
-        {"TcpClient 14","", 0, 0, 0},
-        {"TcpClient 15","", 0, 0, 0}
-};
-
 /*=============================================================================
 // Section:        PROTOTYPES
 // Description: Definition of local prototypes.
@@ -290,7 +272,7 @@ void   ReadDownstream(sm_layout* pSM);
 void   UpstreamHeartbeat(sm_layout* pSM);
 
 BOOL   chk_msg_sta(int bsync, int nr_coc, short int rep_lev);        /* check: message output required */
-int    lineParse(char *lineBuf, int line, dCoC *pCoC);
+int    lineParse(char *lineBuf, int line);
 /*=============================================================================
 // Section:        FUNCTIONS
 // Description: Implementation of functions.
@@ -337,13 +319,12 @@ void ICP_start(sm_layout* pSM)        /* allocated memory table */
 // Returns:    0 if check OK and fills corresponding element of client
 //        description table
 //===========================================================================*/
-int lineParse(char *lineBuf, int line, dCoC *pCoC)
+int lineParse(char *lineBuf, int line)
 {
     char *rest = NULL, *pIPaddr;
     int indx, IP_part, i, leng, rdSize = 0, wrSize = 0;
     char IPaddr[16];
     short id = -1;
-    dCoC *pLoc = pCoC;
 
     if (TICP_debug)
         errlogPrintf("ticp: lineParse: line='%s'\n", lineBuf);
@@ -432,17 +413,15 @@ int lineParse(char *lineBuf, int line, dCoC *pCoC)
         RConfCode |= 1 << indx;
     }
     else RConfCode |= 1;          /* If index = 0 */
-    if (indx) {
-        while (indx--) pLoc++;
-    }
-    strcpy(pLoc->ip_adr, IPaddr);  /* copy PLC IP address */
-    pLoc->rdBlSize = rdSize;      /* set read block size */
-    pLoc->wrBlSize = wrSize;      /* set write block size */
-    pLoc->id = id;                /* set PLC ID */
+    strcpy(clientContext[indx].serverIP, IPaddr);  /* copy PLC IP address */
+    clientContext[indx].readSize = rdSize;      /* set read block size */
+    clientContext[indx].writeSize = wrSize;      /* set write block size */
 
     if (TICP_debug)
-        errlogPrintf("lineParse: set: task='%s' IP='%s' rdSize=%d wrSize=%d ID=%d conf=0x%x\n",
-            pLoc->task_name, pLoc->ip_adr, pLoc->rdBlSize, pLoc->wrBlSize, pLoc->id, RConfCode);
+        errlogPrintf("lineParse: set: IP='%s' rdSize=%d wrSize=%d conf=0x%x\n",
+            clientContext[indx].serverIP,
+            clientContext[indx].readSize, clientContext[indx].writeSize,
+            RConfCode);
 
     return 0;
 }
@@ -487,7 +466,7 @@ void ticp (ticpArgs* args)
                 line++;    /* Increment line counter */
                 continue;    /* Ignore comment lines */
             }
-            nok = lineParse(lineBuf, line, CoC);
+            nok = lineParse(lineBuf, line);
             if (nok)
                 errlogPrintf("ticp: line %d is ignored\n", line);
             else IPind++;        /* Increment IP index */
@@ -531,19 +510,17 @@ void ticp (ticpArgs* args)
     for (idx = 0;idx < MAX_COC;idx++)
     {
         tcpClientContext* client = &clientContext[idx];
-        client->readSize = CoC[idx].rdBlSize;    /* set in bytes */
-        client->writeSize = CoC[idx].wrBlSize;
         client->sendData = (client->writeSize > 0);
 
         if ((StationList & ConfCodeMask) != 0)
         {
-            client->serverIP = CoC[idx].ip_adr;
+            sprintf (client->taskName, "TcpClient %d", idx);
             client->serverPortin = SERVER_PORT_NUM;
             client->pSM = pSM;
             client->nr_coc = idx;
             client->sock = 0;
             client->tid = epicsThreadCreate(
-                                    CoC[idx].task_name,
+                                    client->taskName,
                                     MED_PRI,
                                     STACK_SIZE,
                                     (EPICSTHREADFUNC)tcpClient,
@@ -587,15 +564,15 @@ void ticp (ticpArgs* args)
             if (client->tid)
             {    /* only for existing clients */
                 if (TICP_debug)
-                    errlogPrintf("ICP: idx=%d task '%s' IP='%s'\n",
-                        idx, CoC[idx].task_name, CoC[idx].ip_adr);
+                    errlogPrintf("ICP: idx=%d IP='%s'\n",
+                        idx, client->serverIP);
 
                 if (epicsThreadIsSuspended(client->tid))
                 {    /* if suspended delete it */
                     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     {
                         errlogPrintf("ICP: task '%s' is suspended, try to delete it.\n",
-                            CoC[idx].task_name);
+                            client->taskName);
                         epicsThreadSleep(DelayTicks50ms);
                     }
 
@@ -609,13 +586,13 @@ void ticp (ticpArgs* args)
                     {
                         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
                             errlogPrintf("ICP: suspended '%s' cannot be deleted.\n",
-                                CoC[idx].task_name);
+                                client->taskName);
 
                     }
                     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     {
                         errlogPrintf("ICP: task '%s' is deleted try to restart it.\n",
-                            CoC[idx].task_name);
+                            client->taskName);
                         epicsThreadSleep(DelayTicks50ms);
                     }
 #endif
@@ -636,9 +613,9 @@ void ticp (ticpArgs* args)
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
                     errlogPrintf("ICP: restarting '%s' task: IP='%s'.\n",
-                        CoC[idx].task_name, CoC[idx].ip_adr);
+                        client->taskName, client->serverIP);
                 client->tid = epicsThreadCreate(
-                    CoC[idx].task_name,
+                    client->taskName,
                     MED_PRI,
                     STACK_SIZE,
                     (EPICSTHREADFUNC)tcpClient,
@@ -909,10 +886,14 @@ int wfTimeoutOrRxdata(int sock, int nr_coc)
     to.tv_sec=RECV_TIMEOUT;
     to.tv_usec=0;
     /* select returns when either the socket has data or the timeout elapsed */
-    if ((iSelect=select(sock+1,&socklist, 0, 0,&to)) < 0)
+    while ((iSelect=select(sock+1,&socklist, 0, 0,&to)) < 0)
     {
-        errlogPrintf("ICP %d: select() failed in wfTimeoutOrRxdata: %s\n",
-            nr_coc, strerror(errno));
+        if (errno != EINTR)
+        {
+            errlogPrintf("ICP %d: select() failed in wfTimeoutOrRxdata: %s\n",
+                nr_coc, strerror(errno));
+            return -1;
+        }
     }
     if (iSelect==0)            /* timed out */
     {
@@ -990,17 +971,19 @@ int establishConnection(int sock, char * serverIP, int serverPort)
             FD_ZERO(&fdset);
             FD_SET(sock, &fdset);
             /* wait for connection */
-            status = select(sock+1, NULL, &fdset, NULL, &to);
+            while ((status = select(sock+1, NULL, &fdset, NULL, &to)) < 0)
+            {
+                if (errno != EINTR)
+                {
+                    errlogPrintf("ICP: select() failed in connectWithTimeout: %s\n",
+                        strerror(errno));
+                    return -1;
+                }
+            }
             if (status == 0)
             {
                 errlogPrintf("ICP: select() timed out in connectWithTimeout\n");
                 errno = ETIMEDOUT;
-                return -1;
-            }
-            if (status < 0)
-            {
-                errlogPrintf("ICP: select() failed in connectWithTimeout: %s\n",
-                    strerror(errno));
                 return -1;
             }
             /* get background error status */
