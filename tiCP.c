@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/14 13:27:41 $ */
-/* $Id: tiCP.c,v 1.2 2005/02/14 13:27:41 zimoch Exp $ */
+/* $Date: 2005/02/14 16:53:18 $ */
+/* $Id: tiCP.c,v 1.3 2005/02/14 16:53:18 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.2 $ */
+/* $Revision: 1.3 $ */
 
 
 /*=============================================================================
@@ -184,6 +184,8 @@
 #include <arpa/inet.h> 
 #ifdef __vxworks
 #include <sockLib.h>
+#else
+#include <fcntl.h>
 #endif
 
 #define BOOL int
@@ -221,7 +223,7 @@ static char RemoteHeader = FALSE;    /* default version is without remote header
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.2 2005/02/14 13:27:41 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.3 2005/02/14 16:53:18 zimoch Exp $";
 
 static int    sFd[16];                        /* socket File descriptors */
 
@@ -674,7 +676,7 @@ void ticp (ticpArgs* args)
         if (msg_sent_once == FALSE) {
 
             if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP:>  wait until shared memory initialized .\n");
+                errlogPrintf("ICP:> wait until shared memory initialized .\n");
             msg_sent_once = TRUE;
         }
 
@@ -741,7 +743,7 @@ void ticp (ticpArgs* args)
             if (tidClient[idx]) {    /* only for existing clients */
 
                 if (TICP_debug)
-                    errlogPrintf("ICP: idx=%d task '%s' IP='%s'\n",
+                    errlogPrintf("ICP:> idx=%d task '%s' IP='%s'\n",
                         idx, CoC[idx].task_name, CoC[idx].ip_adr);
 
                 if (epicsThreadIsSuspended(tidClient[idx])) {    /* if suspended delete it */
@@ -783,7 +785,7 @@ void ticp (ticpArgs* args)
             /* !!!! It should be changed if several ticp can be started */
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                    errlogPrintf("ICP:>restarting '%s' task: IP='%s'.\n",
+                    errlogPrintf("ICP:> restarting '%s' task: IP='%s'.\n",
                         CoC[idx].task_name, CoC[idx].ip_adr);
 /*
                 CoC[idx].task_id = taskSpawn(CoC[idx].task_name, MED_PRI, 0, STACK_SIZE, tcpClient,(int)CoC[idx].ip_adr, SERVER_PORT_NUM,(int)pSM, idx);
@@ -847,13 +849,13 @@ STATUS tcpClient (tcpClientArgs* args)
     }
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-        errlogPrintf("\nICP:%d>  Starting TcpClient. Server: %s:%i\n", nr_coc, serverIP, serverPortin);
+        errlogPrintf("\nICP:%d> Starting TcpClient. Server: %s:%i\n", nr_coc, serverIP, serverPortin);
     if (serverPortin==0)
         serverPort=SERVER_PORT_NUM;            /* default */
     else
         serverPort=serverPortin;
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-        errlogPrintf("ICP:%d>  using Server Port %i\n", nr_coc, serverPort);
+        errlogPrintf("ICP:%d> using Server Port %i\n", nr_coc, serverPort);
 
     iRcvBlockCtr[nr_coc]=0;
     sFd[nr_coc]=0;
@@ -884,7 +886,7 @@ STATUS tcpClient (tcpClientArgs* args)
                 perror("socket");
 
                 if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
-                    errlogPrintf("ICP:%d>  -1 create socket => Exiting Application.\n",
+                    errlogPrintf("ICP:%d> -1 create socket => Exiting Application.\n",
                         nr_coc);
                 epicsThreadSleep(DelayTicks5s);    /* 5 sec delay before termination */
                 exit(1);    /* Korobov: return -1; causes
@@ -980,8 +982,8 @@ STATUS tcpClient (tcpClientArgs* args)
 
                 if ((iNumWritten=send(sFd[nr_coc], sendBuf, (block_length_dwn[nr_coc]), 0)) == -1)
                 {
-                    errlogPrintf("ICP:%d> send %d bytes to fd % failed: %s\n",
-                        block_length_dwn[nr_coc], nr_coc, strerror(errno));
+                    errlogPrintf("ICP:%d> send %d bytes to fd %d failed: %s\n",
+                        block_length_dwn[nr_coc], nr_coc, sFd[nr_coc], strerror(errno));
                     break;            /* exit the send/receive loop */
                 }
                 if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
@@ -1004,7 +1006,7 @@ STATUS tcpClient (tcpClientArgs* args)
                 break;            /* exit the send/receive loop */
             }
             if (chk_msg_sta(RBN, nr_coc, REPORT_ALL))
-                errlogPrintf ("ICP:%d>  Message received (length %i)\n",
+                errlogPrintf ("ICP:%d> Message received (length %i)\n",
                     nr_coc, iNumRead);
 
             if (iNumRead > 0) {        /* some data (>0 bytes) received */
@@ -1081,12 +1083,12 @@ STATUS tcpClient (tcpClientArgs* args)
         /* connection not ok; shut it down */
 
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ERR))
-            errlogPrintf("ICP:%d>  connection not ok; shut it down and retry\n", nr_coc);
+            errlogPrintf("ICP:%d> connection not ok; shut it down and retry\n", nr_coc);
         pSM->com_sta.status[H_ADR_COC_STATUS + nr_coc] = CONNECTION_NOK;
         if (shutdown(sFd[nr_coc], 2) == -1)
-            errlogPrintf("ICP:%d> shutdown failed: %s\n", nr_coc, strerror(errno));
+            errlogPrintf("ICP:%d> shutdown failed (ignored): %s\n", nr_coc, strerror(errno));
         if (close (sFd[nr_coc]) == -1)
-            errlogPrintf("ICP:%d> close failed: %s\n", nr_coc, strerror(errno));
+            errlogPrintf("ICP:%d> close failed (ignored): %s\n", nr_coc, strerror(errno));
         sFd[nr_coc]=0;
 
         /* wait some time (allow PLC to disconnect and get ready for new connection) */
@@ -1096,7 +1098,7 @@ STATUS tcpClient (tcpClientArgs* args)
     }/* forever */
 
     if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-        errlogPrintf ("ICP:%d>  Correctly exiting TcpClient application.\n", nr_coc);
+        errlogPrintf ("ICP:%d> Correctly exiting TcpClient application.\n", nr_coc);
     exit(0);    /* Korobov: return OK; causes Illegal instruction
                 exeption */
 }
@@ -1148,7 +1150,7 @@ int wfTimeoutOrRxdata(int sockD, int nr_coc)
     }
     if (iSelect==0)            /* timed out */
     {
-        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))errlogPrintf("ICP:%d>  select timed out.\n", nr_coc);
+        if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_ALL))errlogPrintf("ICP:%d> select timed out.\n", nr_coc);
     }
     return iSelect;
 }
@@ -1158,34 +1160,109 @@ int wfTimeoutOrRxdata(int sockD, int nr_coc)
 // Description: establish permanent (TCP) connection with Server
 // returncode:  0 if ok; -1 if error
 //===========================================================================*/
-int establishConnection(int sockD,char * serverIP,int serverPort)
+int establishConnection(int sock, char * serverIP, int serverPort)
 {
     struct sockaddr_in    serverAddr;    /* server socket address */
     /* set the size of the socket level receive buffer */
     int rbuflen = SOCK_RECV_BUFFER_SIZE;
-/*    static struct timeval    to; */
+    struct timeval    to;
+#ifndef __vxworks
+    long opt;
+#endif
 
     if (TICP_debug)
-        errlogPrintf("establishConnection: IP='%s' port=%d\n", serverIP,serverPort);
+        errlogPrintf("establishConnection: fd=%d, IP=%s port=%d\n", sock, serverIP, serverPort);
 
-    if (setsockopt(sockD, SOL_SOCKET, SO_RCVBUF, (char *)&rbuflen, sizeof(rbuflen)) == -1)
+      if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&rbuflen, sizeof(rbuflen)) == -1)
     {
-        perror("setsockopt(...,SO_RCVBUF) failed; ignore.");
+        perror("setsockopt(..., SO_RCVBUF) failed; ignore.");
     }
     /* build server socket address */
-    bzero((char *) &serverAddr, sizeof (struct sockaddr_in));
+    bzero((char *) &serverAddr, sizeof (serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(serverPort);
     serverAddr.sin_addr.s_addr = inet_addr(serverIP);
 
     /* connect to server */
-/*    to.tv_sec=CONNECT_TIMEOUT;     */   /* specify timeout */
-/*    to.tv_usec=0;                  */  /* connect has no timeout. Emulate? DZ */
-/*    if (connectWithTimeout(sockD, (struct sockaddr *) &serverAddr, sizeof (struct sockaddr_in),&to) == -1) */
-    if (connect(sockD, (struct sockaddr *) &serverAddr, sizeof (struct sockaddr_in)) == -1)
+    to.tv_sec=CONNECT_TIMEOUT;       /* specify timeout */
+    to.tv_usec=0;
+#ifdef __vxworks
+    if (connectWithTimeout(sock,
+        (struct sockaddr *) &serverAddr, sizeof (serverAddr), &to) < 0)
+    {
+        errlogPrintf("ICP> connectWithTimeout(%d,...) failed: %s\n",
+            sock, strerror(errno));
         return -1;
-    else
-        return 0;
+    }
+#else
+    /* emulate connectWithTimeout (D.Z) */
+
+    /* connect in non-blocking mode */
+    if((opt = fcntl(sock, F_GETFL, NULL)) < 0) return -1;
+    opt |= O_NONBLOCK;
+    if(fcntl(sock, F_SETFL, opt) < 0)
+    {
+        errlogPrintf("ICP> fcntl(%d, F_SETFL, O_NONBLOCK) failed: %s\n",
+            sock, strerror(errno));
+        return -1;
+    }
+    if (connect(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
+    {
+        if (errno == EINPROGRESS)
+        {
+            /* start timeout */
+            long status;
+            socklen_t lon = sizeof(status);
+            fd_set fdset;
+
+            FD_ZERO(&fdset);
+            FD_SET(sock, &fdset);
+            /* wait for connection */
+            status = select(sock+1, NULL, &fdset, NULL, &to);
+            if (status == 0)
+            {
+                errlogPrintf("ICP> select() timed out in connectWithTimeout\n");
+                errno = ETIMEDOUT;
+                return -1;
+            }
+            if (status < 0)
+            {
+                errlogPrintf("ICP> select() failed in connectWithTimeout: %s\n",
+                    strerror(errno));
+                return -1;
+            }
+            /* get background error status */
+            if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &status, &lon) < 0)
+            {
+                errlogPrintf("ICP> getsockopt(%d,...) failed in connectWithTimeout: %s\n",
+                    sock, strerror(errno));
+                return -1;
+            }
+            if (status)
+            {
+                errno = status;
+                fprintf(stderr, "ICP> background connect(%d,...) failed in connectWithTimeout: %s\n",
+                    sock, strerror(errno));
+                return -1;
+            }
+        }
+        else
+        {
+            errlogPrintf("ICP> connect(%d,...) failed in connectWithTimeout: %s\n",
+                sock, strerror(errno));
+            return -1;
+        }
+    }
+    /* connected */
+    opt &= ~O_NONBLOCK;
+    if(fcntl(sock, F_SETFL, opt) < 0)
+    {
+        errlogPrintf("ICP> fcntl(%d, F_SETFL, ~O_NONBLOCK) failed: %s\n",
+            sock, strerror(errno));
+        return -1;
+    }
+#endif
+    return 0;
 }
 
 /*=============================================================================
@@ -1293,7 +1370,7 @@ BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
         memcpy(&sendBuf[2*S_LEN],&pSM->buf_dwn[nr_coc].data[2*S_LEN],(block_length_dwn[nr_coc]-2*S_LEN));
         if ((TICP_debug) && (TICP_debug == (nr_coc+1)))
             if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-                errlogPrintf("ICP:%d>  DWN: id %4d length %d\n",
+                errlogPrintf("ICP:%d> DWN: id %4d length %d\n",
                     nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID], block_length_dwn[nr_coc]);
     } else {
 /*      bcopyBytes((char *)pSM->buf_dwn[nr_coc].data, sendBuf,(block_length_dwn[nr_coc])); */
@@ -1306,7 +1383,7 @@ BOOL sm_BufGet(char* sendBuf, sm_layout* pSM, int nr_coc)
 
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-            errlogPrintf("ICP:%d>  DWN: data:\n", nr_coc);
+            errlogPrintf("ICP:%d> DWN: data:\n", nr_coc);
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
                 pSM->buf_dwn[nr_coc].data[0],
@@ -1365,15 +1442,15 @@ BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
         }
 
         if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
-            errlogPrintf("ICP:%d>  sm_BufPut::com_status::alive_ctr: %4d\n",
+            errlogPrintf("ICP:%d> sm_BufPut::com_status::alive_ctr: %4d\n",
                 nr_coc, pSM->com_sta.status[H_ADR_ALIVE_CTR]);
 
         if (chk_msg_sta(RBN, nr_coc, REPORT_DIAG))
-            errlogPrintf("ICP:%d>  sm_BufPut::com_status::alive_ctr[%d]: %4d\n",
+            errlogPrintf("ICP:%d> sm_BufPut::com_status::alive_ctr[%d]: %4d\n",
                 nr_coc, nr_coc, pSM->com_sta.status[H_ADR_ALIVE_CTR+nr_coc+1]);
 
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
-            errlogPrintf("ICP:%d>  UP 0x%x: data:\n",
+            errlogPrintf("ICP:%d> UP 0x%x: data:\n",
                 nr_coc, pSM->sta_up[nr_coc].status[H_ADR_PLC_ID]);
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
