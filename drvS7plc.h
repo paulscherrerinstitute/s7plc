@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */ 
-/* $Date: 2005/03/11 08:35:26 $ */ 
-/* $Id: drvS7plc.h,v 1.2 2005/03/11 08:35:26 zimoch Exp $ */  
+/* $Date: 2005/03/11 15:16:13 $ */ 
+/* $Id: drvS7plc.h,v 1.3 2005/03/11 15:16:13 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.2 $ */ 
+/* $Revision: 1.3 $ */ 
 
 #ifndef drvS7plc_h
 #define drvS7plc_h
@@ -35,7 +35,7 @@ IOSCANPVT s7plcGetOutScanPvt(s7plcStation *station);
 int s7plcReadArray(
     s7plcStation *station,
     unsigned int offset,
-    unsigned int dleng,
+    unsigned int dlen,
     unsigned int nelem,
     void* pdata
 );
@@ -43,23 +43,23 @@ int s7plcReadArray(
 int s7plcWriteMaskedArray(
     s7plcStation *station,
     unsigned int offset,
-    unsigned int dleng,
+    unsigned int dlen,
     unsigned int nelem,
     void* pdata,
     void* pmask
 );
 
-#define s7plcWriteArray(station, offset, dleng, nelem, pdata) \
-    s7plcWriteMaskedArray((station), (offset), (dleng), (nelem), (pdata), NULL)
+#define s7plcWriteArray(station, offset, dlen, nelem, pdata) \
+    s7plcWriteMaskedArray((station), (offset), (dlen), (nelem), (pdata), NULL)
 
-#define s7plcWriteMasked(station, offset, dleng, pdata, mask) \
-    s7plcWriteMaskedArray((station), (offset), (dleng), 1, (pdata), (mask))
+#define s7plcWriteMasked(station, offset, dlen, pdata, mask) \
+    s7plcWriteMaskedArray((station), (offset), (dlen), 1, (pdata), (mask))
 
-#define s7plcWrite(station, offset, dleng, pdata) \
-    s7plcWriteMaskedArray((station), (offset), (dleng), 1, (pdata), NULL)
+#define s7plcWrite(station, offset, dlen, pdata) \
+    s7plcWriteMaskedArray((station), (offset), (dlen), 1, (pdata), NULL)
 
-#define s7plcRead(station, offset, dleng, pdata) \
-    s7plcReadArray((station), (offset), (dleng), 1, (pdata))
+#define s7plcRead(station, offset, dlen, pdata) \
+    s7plcReadArray((station), (offset), (dlen), 1, (pdata))
 
 /************************************************************************/
 /* * DRV driver error codes */

@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/03/11 08:35:26 $ */
-/* $Id: devS7plc.c,v 1.3 2005/03/11 08:35:26 zimoch Exp $ */
+/* $Date: 2005/03/11 15:16:12 $ */
+/* $Id: devS7plc.c,v 1.4 2005/03/11 15:16:12 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.3 $ */
+/* $Revision: 1.4 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -14,6 +14,9 @@
 #include <recGbl.h>
 #include <devSup.h>
 #include <devLib.h>
+
+#include <epicsVersion.h>
+#include <drvS7plc.h>
 
 #include <biRecord.h>
 #include <boRecord.h>
@@ -28,15 +31,13 @@
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
 #include <waveformRecord.h>
-#include <epicsVersion.h>
-
-#include <drvS7plc.h>
 
 #if (EPICS_REVISION<14)
 /* R3.13 */
 #include "compat3_13.h"
 #else
 /* R3.14 */
+#include <calcoutRecord.h>
 #include <cantProceed.h>
 #include <epicsExport.h>
 #endif
@@ -58,7 +59,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.3 2005/03/11 08:35:26 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.4 2005/03/11 15:16:12 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -333,6 +334,25 @@ struct devsup s7plcWaveform =
 
 epicsExportAddress(dset, s7plcWaveform);
 
+#if (EPICS_REVISION>=14)
+/* calcout **********************************************************/
+
+STATIC long s7plcInitRecordCalcout(calcoutRecord *);
+STATIC long s7plcWriteCalcout(calcoutRecord *);
+
+struct devsup s7plcCalcout =
+{
+    5,
+    NULL,
+    NULL,
+    s7plcInitRecordCalcout,
+    s7plcGetOutIntInfo,
+    s7plcWriteCalcout
+};
+
+epicsExportAddress(dset, s7plcCalcout);
+#endif
+
 /*********  Report routine ********************************************/
 
 STATIC long s7plcReport()
@@ -399,26 +419,26 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
 
     struct {char* name; int dlen; epicsType type;} datatypes [] =
     {
-        { "INT8",     1, epicsInt8T   },
+        { "INT8",     1, epicsInt8T    },
         
-        { "UINT8",    1, epicsUInt8T  },
-        { "UNSIGN8",  1, epicsUInt8T  },
-        { "BYTE",     1, epicsUInt8T  },
-        { "CHAR",     1, epicsUInt8T  },
+        { "UINT8",    1, epicsUInt8T   },
+        { "UNSIGN8",  1, epicsUInt8T   },
+        { "BYTE",     1, epicsUInt8T   },
+        { "CHAR",     1, epicsUInt8T   },
         
-        { "INT16",    2, epicsInt16T  },
-        { "SHORT",    2, epicsInt16T  },
+        { "INT16",    2, epicsInt16T   },
+        { "SHORT",    2, epicsInt16T   },
         
-        { "UINT16",   2, epicsUInt16T },
-        { "UNSIGN16", 2, epicsUInt16T },
-        { "WORD",     2, epicsUInt16T },
+        { "UINT16",   2, epicsUInt16T  },
+        { "UNSIGN16", 2, epicsUInt16T  },
+        { "WORD",     2, epicsUInt16T  },
         
-        { "INT32",    4, epicsInt32T  },
-        { "LONG",     4, epicsInt32T  },
+        { "INT32",    4, epicsInt32T   },
+        { "LONG",     4, epicsInt32T   },
         
-        { "UINT32",   4, epicsUInt32T },
-        { "UNSIGN32", 4, epicsUInt32T },
-        { "DWORD",    4, epicsUInt32T },
+        { "UINT32",   4, epicsUInt32T  },
+        { "UNSIGN32", 4, epicsUInt32T  },
+        { "DWORD",    4, epicsUInt32T  },
 
         { "REAL32",   4, epicsFloat32T },
         { "FLOAT32",  4, epicsFloat32T },
@@ -428,7 +448,8 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
         { "FLOAT64",  8, epicsFloat64T },
         { "DOUBLE",   8, epicsFloat64T },
 
-        { "TIME",     1, S7MEM_TIME }
+        { "TIME",     1, S7MEM_TIME    },
+        { "BCD",      1, S7MEM_TIME    }
     };
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
@@ -2116,7 +2137,6 @@ STATIC long s7plcInitRecordWaveform(waveformRecord *record)
             {
                 status = S_db_badField;
             }
-            if (record->nord > 8) record->nord = 8;
             break;
         case epicsFloat64T:
             if (record->ftvl != DBF_DOUBLE)
@@ -2270,3 +2290,160 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
     }
     return status;
 }
+
+#if (EPICS_REVISION>=14)
+/* calcout **********************************************************/
+
+STATIC long s7plcInitRecordCalcout(calcoutRecord *record)
+{
+    S7memPrivate_t *priv;
+    int status;
+
+    if (record->out.type != INST_IO) {
+        recGblRecordError(S_db_badField, record,
+            "s7plcInitRecordCalcout: illegal OUT field");
+        return S_db_badField;
+    }
+    priv = (S7memPrivate_t *)callocMustSucceed(1,
+        sizeof(S7memPrivate_t), "s7plcInitRecordCalcout");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
+    if (status)
+    {
+        recGblRecordError(S_db_badField, record,
+            "s7plcInitRecordCalcout: bad OUT field");
+        return S_db_badField;
+    }
+    assert(priv->station);
+    switch (priv->dtype)
+    {
+        case epicsInt8T:
+        case epicsUInt8T:
+        case epicsInt16T:
+        case epicsUInt16T:
+        case epicsInt32T:
+        case epicsUInt32T:
+        case epicsFloat32T:
+        case epicsFloat64T:
+            break;
+        default:
+            errlogSevPrintf(errlogFatal,
+                "s7plcInitRecordCalcout %s: illegal data type\n",
+                record->name);
+            return S_db_badField;
+    }
+    record->dpvt = priv;
+    return 2; /* preserve whatever is in the VAL field */
+}
+
+STATIC long s7plcWriteCalcout(calcoutRecord *record)
+{
+    int status;
+    S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
+    epicsUInt8 uval8;
+    epicsUInt16 uval16;
+    epicsUInt32 uval32;
+    epicsInt8 sval8;
+    epicsInt16 sval16;
+    epicsInt32 sval32;
+    epicsFloat32 val32;
+    epicsFloat64 val64;
+
+    if (!priv)
+    {
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
+        return -1;
+    }
+    assert(priv->station);
+    val64 = record->oval;
+    switch (priv->dtype)
+    {
+        case epicsInt8T:
+            sval8 = val64;
+            if (val64 > priv->hwHigh) sval8 = priv->hwHigh;
+            if (val64 < priv->hwLow) sval8 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
+                record->name, sval8 & 0xff);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                1, &sval8);
+            break;
+        case epicsUInt8T:
+            uval8 = val64;
+            if (val64 > priv->hwHigh) uval8 = priv->hwHigh;
+            if (val64 < priv->hwLow) uval8 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
+                record->name, uval8 & 0xff);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                1, &uval8);
+            break;
+        case epicsInt16T:
+            sval16 = val64;
+            if (val64 > priv->hwHigh) sval16 = priv->hwHigh;
+            if (val64 < priv->hwLow) sval16 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
+                record->name, sval16 & 0xffff);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                2, &sval16);
+            break;
+        case epicsUInt16T:
+            uval16 = val64;
+            if (val64 > priv->hwHigh) uval16 = priv->hwHigh;
+            if (val64 < priv->hwLow) uval16 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
+                record->name, uval16 & 0xffff);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                2, &uval16);
+            break;
+        case epicsInt32T:
+            sval32 = val64;
+            if (val64 > priv->hwHigh) sval32 = priv->hwHigh;
+            if (val64 < priv->hwLow) sval32 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
+                record->name, sval32);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                4, &sval32);
+            break;
+        case epicsUInt32T:
+            uval32 = val64;
+            if (val64 > priv->hwHigh) uval32 = priv->hwHigh;
+            if (val64 < priv->hwLow) uval32 = priv->hwLow;
+            s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
+                record->name, uval32);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                4, &uval32);
+            break;
+        case epicsFloat32T:
+            val32 = val64;
+            s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
+                record->name, *(epicsInt32*)&val32);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                4, &val32);
+            break;
+        case epicsFloat64T:
+            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit %016Lx\n",
+                record->name, *(long long*)&val64);
+            status = s7plcWrite(priv->station, priv->st_offs,
+                8, &val64);
+            break;
+        default:
+            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+            errlogSevPrintf(errlogFatal,
+                "%s: unexpected data type requested\n",
+                record->name);
+            return -1;
+    }
+    if (status == S_drv_noConn)
+    {
+        recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+        return 0;
+    }
+    if (status)
+    {
+        recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
+    }
+    return status;
+}
+
+#endif
