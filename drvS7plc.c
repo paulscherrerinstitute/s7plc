@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.2 2005/02/14 13:03:10 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.3 2005/02/14 16:39:44 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +8,7 @@
 #include <dbScan.h>
 #include <drvSup.h>
 #include <devLib.h>
+#include <epicsVersion.h>
 #include "ticp.h"
 #include "drvS7plc.h"
 
@@ -32,7 +33,7 @@
 #endif
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.2 2005/02/14 13:03:10 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.3 2005/02/14 16:39:44 zimoch Exp $";
 
 static long s7plcIoReport(); 
 static long s7plcInit();

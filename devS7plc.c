@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/02/07 16:06:41 $ */
-/* $Id: devS7plc.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $ */
+/* $Date: 2005/02/14 16:39:08 $ */
+/* $Id: devS7plc.c,v 1.2 2005/02/14 16:39:08 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.1 $ */
+/* $Revision: 1.2 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -28,6 +28,7 @@
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
 #include <waveformRecord.h>
+#include <epicsVersion.h>
 
 #include <drvS7plc.h>
 #include <ticp.h>
@@ -54,7 +55,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.1 2005/02/07 16:06:41 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.2 2005/02/14 16:39:08 zimoch Exp $";
 
 static long s7plcReport();
 
