@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.6 2005/02/28 15:38:24 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.7 2005/03/01 16:43:18 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,15 +12,6 @@
 #include "ticp.h"
 #include "drvS7plc.h"
 
-#ifdef __vxworks
-#include <vxWorks.h>
-#define __BYTE_ORDER _BYTE_ORDER
-#define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#define __BIG_ENDIAN _BIG_ENDIAN
-#else
-#include <endian.h>
-#endif
-
 #if (EPICS_REVISION<14)
 /* R3.13 */
 #include "compat3_13.h"
@@ -32,8 +23,17 @@
 #include <epicsExport.h>
 #endif
 
+#ifdef __vxworks
+#define __BYTE_ORDER _BYTE_ORDER
+#define __LITTLE_ENDIAN _LITTLE_ENDIAN
+#define __BIG_ENDIAN _BIG_ENDIAN
+#else
+#include <endian.h>
+#endif
+
+
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.6 2005/02/28 15:38:24 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.7 2005/03/01 16:43:18 zimoch Exp $";
 
 static long s7plcIoReport(int level); 
 static long s7plcInit();
