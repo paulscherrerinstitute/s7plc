@@ -161,10 +161,10 @@
 //===========================================================================*/
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 15:12:57 $ */
-/* $Id: tiCP.c,v 1.8 2005/02/28 15:12:57 zimoch Exp $ */
+/* $Date: 2005/02/28 15:38:24 $ */
+/* $Id: tiCP.c,v 1.9 2005/02/28 15:38:24 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.8 $ */
+/* $Revision: 1.9 $ */
 
 
 /*=============================================================================
@@ -199,7 +199,6 @@
 typedef struct {
     unsigned ConfCode;
     sm_layout* pSM;
-    unsigned GlbRepLev;
 } ticpArgs;
 
 typedef struct {
@@ -226,7 +225,7 @@ int TICP_debug = 0;
 // Description: Definition of global variables.
 //===========================================================================*/
 
-static char cvsid[]="$Id: tiCP.c,v 1.8 2005/02/28 15:12:57 zimoch Exp $";
+static char cvsid[]="$Id: tiCP.c,v 1.9 2005/02/28 15:38:24 zimoch Exp $";
 
 static tcpClientContext clientContext [MAX_COC];
 static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv data */       
@@ -241,16 +240,14 @@ static char rcvBlock[MAX_COC][2*MAX_UP_BUF_SIZE];/* block with assembled rcv dat
 #define DelayTicks5s    (5.00)         /* calculated Ticks for a wait of 5 [s]*/
 
 /* header information */
-static BOOL XferChangedOnly;
 static int StationList;
-static BOOL SmInitialized ;
 static unsigned  RConfCode;
 
 /* message information*/
 static BOOL sta_msg_out;                /*  status message output */
 static BOOL cmd_msg_out;                /*  command: send new message block */
-static short int     RepLev;            /*  report level */
-static short int     RepCoc;            /*  report channel */
+int     TICP_RepLevel = 4;              /*  report level */
+int     TICP_RepStation = 0;            /*  report channel */
 
 static dCoC CoC[] = {
         {"TcpClient 0","", 0, 0, 0},
@@ -312,15 +309,12 @@ void ICP_version()
 // Function:    ICP_start
 // Description: spawns the ICP task with predefined task arguments
 //===========================================================================*/
-void ICP_start(sm_layout* pSM,        /* allocated memory table */
-               unsigned GlbSwapBytes, /* swap bytes flag (not used any more)*/
-               unsigned RepLev)       /* report level */
+void ICP_start(sm_layout* pSM)        /* allocated memory table */
 {
     static ticpArgs args;
     
     args.ConfCode = 0;
     args.pSM = pSM;
-    args.GlbRepLev = RepLev;
 
     epicsThreadCreate(
         ICP_TASK_NAME,    /* task name */
@@ -514,11 +508,7 @@ void ticp (ticpArgs* args)
         exit(1);
     }
 
-    RepLev = args->GlbRepLev;
-
-    XferChangedOnly = 0;
     StationList     = 0;
-    SmInitialized   = 0;
     sta_msg_out     = 0;
     cmd_msg_out     = 1;
     
@@ -1152,8 +1142,6 @@ BOOL sm_BufPut(char* recvBuf, sm_layout* pSM, int nr_coc)
 /*  bcopyBytes(recvBuf,(char *)pSM->buf_up[nr_coc].data, block_length_up[nr_coc]); */
     memcpy(pSM->buf_up[nr_coc].data, recvBuf, clientContext[nr_coc].readSize);
 
-    SmInitialized = 1;
-
     if ((TICP_debug) && (TICP_debug == (nr_coc+1))) {
         if (chk_msg_sta(RBN, REP_ALL_COC, REPORT_DIAG))
             errlogPrintf("ICP %d: UP: length: %d\n",
@@ -1233,19 +1221,19 @@ void    ReadDownstream(sm_layout* pSM)
 //===========================================================================*/
 BOOL chk_msg_sta(int bsync, int nr_coc, short int rep_lev)
 {
-    if ((nr_coc == REP_ALL_COC)&&(RepLev >= rep_lev)) return 1;
+    if ((nr_coc == REP_ALL_COC)&&(TICP_RepLevel >= rep_lev)) return 1;
 
-    if ((bsync == RBB) && (cmd_msg_out)&& (nr_coc == RepCoc)) {
+    if ((bsync == RBB) && (cmd_msg_out)&& (nr_coc == TICP_RepStation)) {
         cmd_msg_out  = 0;
         sta_msg_out  = 1;
     }
 
     if (!sta_msg_out) return 0;
 
-    if ((bsync == RBE) && (sta_msg_out)&& (nr_coc == RepCoc))sta_msg_out  = 0;
+    if ((bsync == RBE) && (sta_msg_out)&& (nr_coc == TICP_RepStation))sta_msg_out  = 0;
 
-    if ((nr_coc != RepCoc)&&(nr_coc != REP_ALL_COC)) return 0;
-    if (RepLev < rep_lev) return 0;
+    if ((nr_coc != TICP_RepStation)&&(nr_coc != REP_ALL_COC)) return 0;
+    if (TICP_RepLevel < rep_lev) return 0;
     return 1;
 }
 

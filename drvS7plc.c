@@ -1,4 +1,4 @@
-/* $Id: drvS7plc.c,v 1.5 2005/02/28 15:12:57 zimoch Exp $ */  
+/* $Id: drvS7plc.c,v 1.6 2005/02/28 15:38:24 zimoch Exp $ */  
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +33,7 @@
 #endif
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.5 2005/02/28 15:12:57 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.6 2005/02/28 15:38:24 zimoch Exp $";
 
 static long s7plcIoReport(int level); 
 static long s7plcInit();
@@ -128,7 +128,7 @@ static long s7plcInit()
     for (device = devices; device; device = device->next)
     {
         s7plcDebugLog(1, "starting ICP \"%s\"\n", device->name);
-        ICP_start(device->mem, 0, 4);
+        ICP_start(device->mem);
     }
     return 0;
 }

@@ -35,10 +35,10 @@
 */
 
 /* $Author: zimoch $ */
-/* $Date: 2005/02/28 15:12:57 $ */
-/* $Id: ticp.h,v 1.4 2005/02/28 15:12:57 zimoch Exp $ */
+/* $Date: 2005/02/28 15:38:24 $ */
+/* $Id: ticp.h,v 1.5 2005/02/28 15:38:24 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.4 $ */
+/* $Revision: 1.5 $ */
 
 #ifndef INCticph
 #define INCticph
@@ -176,17 +176,7 @@ typedef struct dCoC {
     short id;              /* PLC ID (last part of PLC IP address)*/
 } dCoC;
 
-/* Message header structure (when remote header is used) */
-
-typedef struct msg_header {
-    short plcID;           /* PLC ID (the last part of IP address)*/
-    short byteCnt;         /* Byte counter for the message */
-    short resrv[8];        /* reserved */
-} msg_header;
-
-void ICP_start(sm_layout* pSM,        /* allocated memory table */
-               unsigned GlbSwapBytes, /* swap bytes flag */
-               unsigned RepLev);      /* report level */
+void ICP_start(sm_layout* pSM);        /* allocated memory table */
                
 int ticpReport();
 #endif /* INCticph */
