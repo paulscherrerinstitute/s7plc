@@ -1,10 +1,10 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
 <title>S7plc EPICS driver</title>
-<meta content="iso-8859-1" http-equiv="charset">
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="author" content="Dirk Zimoch">
-<style>
+<style type="text/css">
 <!--
 p { text-align:justify; margin-top:0; }
 .indent {text-indent:-4ex; margin-left:4ex; text-align:left;}
@@ -12,7 +12,6 @@ h2 {margin-bottom:1ex; }
 h4 {margin-bottom:0; margin-top:1ex; }
 @media screen {
 pre,code {color:green; }
-.mail { display:none; }
 }
 @media print {
 a {color:black; text-decoration:none; }
@@ -24,26 +23,26 @@ a {color:black; text-decoration:none; }
 <h1>S7plc EPICS driver documentation</h1>
 <h2>Contents</h2>
 <ol>
-<a href="#config"><li>Driver Configuration</li></a>
-<a href="#device"><li>Device Support</li></a>
+<li><a href="#config">Driver Configuration</a></li>
+<li><a href="#device">Device Support</a>
  <ol>
- <a href="#stat"><li>Connection Status</li></a> 
- <a href="#ai"><li>Analog Input</li></a> 
- <a href="#ao"><li>Analog Output</li></a> 
- <a href="#bi"><li>Binary Input</li></a> 
- <a href="#bo"><li>Binary Output</li></a> 
- <a href="#mbbi"><li>Multibit Binary Input</li></a> 
- <a href="#mbbo"><li>Multibit Binary Output</li></a> 
- <a href="#mbbiDirect"><li>Multibit Binary Input Direct</li></a> 
- <a href="#mbboDirect"><li>Multibit Binary Output Direct</li></a> 
- <a href="#longin"><li>Long Input</li></a> 
- <a href="#longout"><li>Long Output</li></a> 
- <a href="#stringin"><li>String Input</li></a> 
- <a href="#stringout"><li>String Output</li></a> 
- <a href="#waveform"><li>Waveform Input</li></a> 
- <a href="#calcout"><li>Calculation Output</li></a> 
- </ol>
-<a href="#driver"><li>Driver Functions</li></a>
+ <li><a href="#stat">Connection Status</a></li>
+ <li><a href="#ai">Analog Input</a></li>
+ <li><a href="#ao">Analog Output</a></li>
+ <li><a href="#bi">Binary Input</a></li>
+ <li><a href="#bo">Binary Output</a></li>
+ <li><a href="#mbbi">Multibit Binary Input</a></li>
+ <li><a href="#mbbo">Multibit Binary Output</a></li>
+ <li><a href="#mbbiDirect">Multibit Binary Input Direct</a></li>
+ <li><a href="#mbboDirect">Multibit Binary Output Direct</a></li>
+ <li><a href="#longin">Long Input</a></li>
+ <li><a href="#longout">Long Output</a></li>
+ <li><a href="#stringin">String Input</a></li>
+ <li><a href="#stringout">String Output</a></li>
+ <li><a href="#waveform">Waveform Input</a></li>
+ <li><a href="#calcout">Calculation Output</a></li>
+ </ol></li>
+<li><a href="#driver">Driver Functions</a></li>
 </ol>
 <h2>Intro</h2>
 <p>
@@ -60,7 +59,7 @@ current version has been completely rewritten for PPT (Puls-Plasmatechnik GmbH)
 to run on a R3.14.6 PC based system, but it can also run on R3.13 vxWorks
 system. Author of the current version is
 <a href="mailto:Dirk Zimoch <dirk.zimoch&#64;psi&#46;ch>">Dirk
-Zimoch&nbsp;(SLS)<span class=mail> &lt;dirk.zimoch&#64;psi&#46;ch&gt;</span></a>.
+Zimoch&nbsp;(SLS) &lt;dirk.zimoch&#64;psi&#46;ch&gt;</a>.
 </p>
 <p>
 In this document, it is assumed that the reader is familiar with EPICS, the
@@ -68,7 +67,8 @@ record concept and meanings of the fields of the standard records.
 Recommended documentation: EPICS Record Refecrence Manual.
 </p>
 
-<a name="config"><h2>1 Driver Configuration</h2></a>
+<a name="config"></a>
+<h2>1 Driver Configuration</h2>
 <p>
 In the IOC startup script, the s7plc driver needs to be configured:
 </p>
@@ -129,7 +129,7 @@ The following levels are supported:
 &nbsp;2:+ output record processing<br>
 &nbsp;3:+ inputput record processing<br>
 &nbsp;4:+ driver calls<br>
-&nbsp;5:+ io printout</td>
+&nbsp;5:+ io printout<br>
 </p>
 <p>
 Be careful using level>1 since many messages can introduce considerable
@@ -144,7 +144,8 @@ In the iocsh use
 <code>var s7plcDebug <i>level</i></code>
 </p>
 
-<a name="device"><h2>2 Device Support</h2></a>
+<a name="device"></a>
+<h2>2 Device Support</h2>
 <p>
 The driver supports the standard record types <a href="#ai">ai</a>,
 <a href="#ao">ao</a>, <a href="#bi">bi</a>, <a href="#bo">bo</a>,
@@ -207,8 +208,8 @@ Analog output records will never write integer values lower than
 value is truncated to the nearest limit. The default values for
 <code>L</code> and <code>H</code> depend on&nbsp;<code>T</code>.
 </p>
-<a name="type">
-<p align=center>
+<a name="type"></a>
+<center>
 <table border=1 cellpadding=5>
 <tr>
 <th>T=</th><th>Data Type</th><th>Default L=</th><th>Default H=</th>
@@ -265,8 +266,8 @@ value is truncated to the nearest limit. The default values for
  <td>40</td><td>N/A</td>
 </tr>
 </table>
-</p>
-</a>
+</center>
+
 <p>
 If <code>T=STRING</code>, <code>L</code> means <i>length</i>, not <i>low</i>.
 The default value is the length of the <code>VAL</code> field.
@@ -295,7 +296,8 @@ initialisation. Thus, auto save and restore can be used in combination with
 </p>
 
 
-<a name="stat"><h3>2.1 Connection Status</h3></a>
+<a name="stat"></a>
+<h3>2.1 Connection Status</h3>
 <pre>
  record (bi, "$(RECORDNAME)") {
   field (DTYP, "S7plc stat")
@@ -308,7 +310,8 @@ The record value is 1 if a connection to the PLC is established and 0 if not.
 Disconnect does not raise an alarm.
 </p>
 
-<a name="ai"><h3>2.2 Analog Input</h3></a>
+<a name="ai"></a>
+<h3>2.2 Analog Input</h3>
 <pre>
  record (ai, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -338,7 +341,7 @@ so that <code>RVAL=L</code> converts to <code>VAL=EGUL</code> and
 <code>RVAL=H</code> converts to <code>VAL=EGUF</code>.
 </p>
 <p>
-<code>VAL<sub>temp</sub>=(RVAL-L)*(EGUF-EGUL)/(H-L)+EGUL
+<code>VAL<sub>temp</sub>=(RVAL-L)*(EGUF-EGUL)/(H-L)+EGUL</code>
 </p>
 <p>
 After this conversion, <code>VAL<sub>temp</sub></code> is still
@@ -361,7 +364,8 @@ by the record support during conversion.
 <code>T=STRING</code> is not valid for ai records.
 </p>
 
-<a name="ao"><h3>2.3 Analog Output</h3></a>
+<a name="ao"></a>
+<h3>2.3 Analog Output</h3>
 <pre>
  record (ao, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -417,7 +421,8 @@ record support during conversion.
 <code>T=STRING</code> is not valid for ao records.
 </p>
 
-<a name="bi"><h3>2.4 Binary Input</h3></a>
+<a name="bi"></a>
+<h3>2.4 Binary Input</h3>
 <pre>
  record(bi, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -448,7 +453,8 @@ The PV is read to <code>RVAL</code> and masked with
 valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="bo"><h3>2.5 Binary Output</h3></a>
+<a name="bo"></a>
+<h3>2.5 Binary Output</h3>
 <pre>
  record(bo, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -473,7 +479,6 @@ Only the referenced bit of the PV is changed while all other bits remain
 untouched. Thus, other output records can write to different bits of the
 same&nbsp;PV.
 <p>
-</p>
 <code>RVAL=(VAL!=0)?(1&lt;&lt;<i>bit</i>):0;
 <i>PV</i>=(<i>PV</i><sub>old</sub>&~(1&lt;&lt;<i>bit</i>))|RVAL</code>
 </p>
@@ -482,7 +487,8 @@ same&nbsp;PV.
 valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="mbbi"><h3>2.6 Multibit Binary Input</h3></a>
+<a name="mbbi"></a>
+<h3>2.6 Multibit Binary Input</h3>
 <pre>
  record(mbbi, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -509,6 +515,7 @@ the first byte, in big endian byte order it is in the last byte of the&nbsp;PV.
 <p>
 <b>Example:</b> Use bits 4 to 9 out of 16.
 <code>T=INT16</code>, <code>NOBT=6</code>, <code>SHFT=4</code>
+</p>
 <table border=1 cellspacing=0>
  <tr>
   <td>PV</td>
@@ -549,13 +556,13 @@ the first byte, in big endian byte order it is in the last byte of the&nbsp;PV.
   <th>4</th>
  </tr>
 </table>
-</p>
 <p>
 <code>T=STRING</code>, <code>T=FLOAT</code> or <code>T=DOUBLE</code> are not
 valid for mbbi records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="mbbo"><h3>2.7 Multibit Binary Output</h3></a>
+<a name="mbbo"></a>
+<h3>2.7 Multibit Binary Output</h3>
 <pre>
  record(mbbo, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -587,6 +594,7 @@ of the same&nbsp;PV.
 <p>
 <b>Example:</b> Use bits 5 to 8 out of 16.
 <code>T=INT16</code>, <code>NOBT=4</code>, <code>SHFT=5</code>
+</p>
 <table border=1 cellspacing=0>
  <tr>
   <td>RVAL</td>
@@ -627,13 +635,13 @@ of the same&nbsp;PV.
   <th bgcolor="#c0c0c0" width="5%">0</th>
  </tr>
 </table>
-</p>
 <p>
 <code>T=STRING</code>, <code>T=FLOAT</code> or <code>T=DOUBLE</code> are not
 valid for mbbo records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="mbbiDirect"><h3>2.8 Multibit Binary Input Direct</h3></a>
+<a name="mbbiDirect"></a>
+<h3>2.8 Multibit Binary Input Direct</h3>
 <pre>
  record(mbbiDirect, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -651,7 +659,7 @@ The PV is read to <code>VAL</code>, shifted right by <code>SHFT</code>
 bits and masked with <code>NOBT</code> bits (see <a href="#mbbi">mbbi</a>).
 Valid values for <code>NOBT</code> and <code>SHFT</code> depend
 on&nbsp;<code>T</code>: <code>NOBT</code>+<code>SHFT</code> must
-not exceed the number of bits of the type</code>.
+not exceed the number of bits of the type.
 </p>
 <p>
 Bit 0 is the least significant bit. In little endian byte order, bit 0 is in
@@ -662,7 +670,8 @@ the first byte, in big endian byte order it is in the last byte of the&nbsp;PV.
 valid for mbbiDirect records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="mbboDirect"><h3>2.9 Multibit Binary Output Direct</h3></a>
+<a name="mbboDirect"></a>
+<h3>2.9 Multibit Binary Output Direct</h3>
 <pre>
  record(mbboDirect, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -680,7 +689,7 @@ VAL is masked with <code>NOBT</code> bits, shifted left by <code>SHFT</code>
 bits and written to the PV (see <a href="#mbbo">mbbo</a>). Valid values for
 <code>NOBT</code> and <code>SHFT</code> depend on&nbsp;<code>T</code>:
 <code>NOBT</code>+<code>SHFT</code> must not exceed the number of bits of
-the type</code>.
+the type.
 </p>
 <p>
 Bit 0 is the least significant bit. In little endian byte order, bit 0 is in
@@ -696,7 +705,8 @@ of the same&nbsp;PV.
 valid for mbboDirect records. Signed and unsigned types are equivalent.
 </p>
 
-<a name="longin"><h3>2.10 Long Input</h3></a>
+<a name="longin"></a>
+<h3>2.10 Long Input</h3>
 <pre>
  record(longin, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -717,7 +727,8 @@ the type.
 valid for longin records.
 </p>
 
-<a name="longout"><h3>2.11 Long Output</h3></a>
+<a name="longout"></a>
+<h3>2.11 Long Output</h3>
 <pre>
  record(longout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -737,7 +748,8 @@ of <code>VAL</code> are written to the&nbsp;PV.
 valid for longout records.
 </p>
 
-<a name="stringin"><h3>2.12 String Input</h3></a>
+<a name="stringin"></a>
+<h3>2.12 String Input</h3>
 <pre>
  record(stringin, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -755,7 +767,8 @@ terminated. Thus, the effective string length is maximal
 <code>L</code>-1 bytes.
 </p>
 
-<a name="stringout"><h3>2.13 String Output</h3></a>
+<a name="stringout"></a>
+<h3>2.13 String Output</h3>
 <pre>
  record(stringout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -775,7 +788,8 @@ it is longer than <code>L</code>, the string is truncated and not
 null terminated
 </p>
 
-<a name="waveform"><h3>2.14 Waveform Input</h3></a>
+<a name="waveform"></a>
+<h3>2.14 Waveform Input</h3>
 <pre>
  record(waveform, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -815,7 +829,8 @@ to transfer BCD coded real time clock timestamps.
 </p>
 <p>
 The Siemens "STEP 7" manual defines the 8 byte PLC timetamp as follows:
-<table border=1 cleccspacing=0>
+</p>
+<table border=1 cellspacing=0>
  <tr>
   <th>0</th>
   <th>1</th>
@@ -837,7 +852,6 @@ The Siemens "STEP 7" manual defines the 8 byte PLC timetamp as follows:
   <td>msec(lo)*10+day of week</td>
  </tr>
 </table>
-</p>
 <p>
 Years 90 to 99 mean 1990 to 1999, years 0 to 89 mean 2000 to 2089. Months
 and days start with 1. Hour is 0 to 23, minute and second 0 to 59. Msec are
@@ -848,7 +862,8 @@ If you want to have the unconverted BCD bytes, do not use
 <code>T=TIME</code>.
 </p>
 
-<a name="calcout"><h3>2.15 Calculation Output</h3></a>
+<a name="calcout"></a>
+<h3>2.15 Calculation Output</h3>
 <pre>
  record(calcout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -868,7 +883,7 @@ depending on <code>DOPT</code>) is written to the PV. If
 integer and compared to <code>L</code> and <code>H</code>.
 If <code>OVAL</code> is lower than <code>L</code> or higher than
 <code>H</code>, it is truncated to the nearest limit. 
-</p>W
+</p>
 <p>
 If <code>T=FLOAT</code> or <code>T=DOUBLE</code>,
 <code>OVAL</code> is written to the PV directly without any conversion.
@@ -880,7 +895,8 @@ If <code>T=FLOAT</code> or <code>T=DOUBLE</code>,
 To use this device support with calcout records, you need EPICS R3.14.
 </p>
 
-<a name="driver"><h2>3 Driver Functions</h2></a>
+<a name="driver"></a>
+<h2>3 Driver Functions</h2>
 <p>
 Device support for other record types can be written with calls to the
 following driver functions:
