@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/03/11 15:16:12 $ */
-/* $Id: devS7plc.c,v 1.4 2005/03/11 15:16:12 zimoch Exp $ */
+/* $Date: 2005/04/12 15:30:55 $ */
+/* $Id: devS7plc.c,v 1.5 2005/04/12 15:30:55 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.4 $ */
+/* $Revision: 1.5 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -59,7 +59,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.4 2005/03/11 15:16:12 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.5 2005/04/12 15:30:55 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1738,7 +1738,7 @@ STATIC long s7plcSpecialLinconvAi(aiRecord *record, int after)
         record->eslo = (record->eguf - record->egul) / hwSpan;
         record->eoff =
             (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
-            / hwSpan;;
+            / hwSpan;
     }
     return 0;
 }
@@ -1910,7 +1910,7 @@ STATIC long s7plcSpecialLinconvAo(aoRecord *record, int after)
         record->eslo = (record->eguf - record->egul) / hwSpan;
         record->eoff = 
             (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
-            / hwSpan;;
+            / hwSpan;
     }
     return 0;
 }
