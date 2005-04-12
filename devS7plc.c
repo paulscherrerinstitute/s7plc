@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/04/12 15:30:55 $ */
-/* $Id: devS7plc.c,v 1.5 2005/04/12 15:30:55 zimoch Exp $ */
+/* $Date: 2005/04/12 16:18:04 $ */
+/* $Id: devS7plc.c,v 1.6 2005/04/12 16:18:04 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.5 $ */
+/* $Revision: 1.6 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -59,7 +59,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.5 2005/04/12 15:30:55 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.6 2005/04/12 16:18:04 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -691,6 +691,7 @@ STATIC long s7plcReadStat(biRecord *record)
         return -1;
     }
     assert(priv->station);
+    /* psudo-read (0 bytes) just to get the connection status */
     status = s7plcReadArray(priv->station, 0, 0, 0, NULL);
     if (status == S_drv_noConn)
     {
@@ -766,7 +767,7 @@ STATIC long s7plcReadBi(biRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dlen)
+    switch (priv->dtype)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -871,7 +872,7 @@ STATIC long s7plcWriteBo(boRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dlen)
+    switch (priv->dtype)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -1083,7 +1084,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dlen)
+    switch (priv->dtyp)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -1295,7 +1296,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dlen)
+    switch (priv->dtyp)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -1525,7 +1526,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dlen)
+    switch (priv->dtyp)
     {
         case epicsInt8T:
         case epicsUInt8T:
