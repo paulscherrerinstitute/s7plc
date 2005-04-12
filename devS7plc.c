@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/04/12 16:18:04 $ */
-/* $Id: devS7plc.c,v 1.6 2005/04/12 16:18:04 zimoch Exp $ */
+/* $Date: 2005/04/12 16:21:07 $ */
+/* $Id: devS7plc.c,v 1.7 2005/04/12 16:21:07 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.6 $ */
+/* $Revision: 1.7 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -59,7 +59,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.6 2005/04/12 16:18:04 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.7 2005/04/12 16:21:07 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1084,7 +1084,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dtyp)
+    switch (priv->dtype)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -1296,7 +1296,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dtyp)
+    switch (priv->dtype)
     {
         case epicsInt8T:
         case epicsUInt8T:
@@ -1526,7 +1526,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dtyp)
+    switch (priv->dtype)
     {
         case epicsInt8T:
         case epicsUInt8T:
