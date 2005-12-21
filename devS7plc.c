@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/04/12 16:21:07 $ */
-/* $Id: devS7plc.c,v 1.7 2005/04/12 16:21:07 zimoch Exp $ */
+/* $Date: 2005/12/21 14:02:17 $ */
+/* $Id: devS7plc.c,v 1.8 2005/12/21 14:02:17 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.7 $ */
+/* $Revision: 1.8 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -59,7 +59,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.7 2005/04/12 16:21:07 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.8 2005/12/21 14:02:17 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -695,6 +695,8 @@ STATIC long s7plcReadStat(biRecord *record)
     status = s7plcReadArray(priv->station, 0, 0, 0, NULL);
     if (status == S_drv_noConn)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         record->rval = 0;
         return 0;
     }
@@ -807,6 +809,8 @@ STATIC long s7plcReadBi(biRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
@@ -1020,6 +1024,8 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
@@ -1232,6 +1238,8 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
@@ -1463,6 +1471,8 @@ STATIC long s7plcReadLongin(longinRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
@@ -1709,6 +1719,8 @@ STATIC long s7plcReadAi(aiRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
     }
@@ -1990,6 +2002,8 @@ STATIC long s7plcReadStringin(stringinRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
@@ -2287,6 +2301,8 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
     }
     if (status)
     {
+        errlogSevPrintf(errlogFatal,
+            "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;

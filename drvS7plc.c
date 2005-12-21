@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/03/14 10:59:34 $ */
-/* $Id: drvS7plc.c,v 1.9 2005/03/14 10:59:34 zimoch Exp $ */
+/* $Date: 2005/12/21 14:02:17 $ */
+/* $Id: drvS7plc.c,v 1.10 2005/12/21 14:02:17 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.9 $ */
+/* $Revision: 1.10 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +56,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.9 2005/03/14 10:59:34 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.10 2005/12/21 14:02:17 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -345,13 +345,15 @@ int s7plcReadArray(
     if (offset+dlen > station->inSize)
     {
        errlogSevPrintf(errlogMajor,
-        "s7plcRead: offset %u out of range\n", offset);
+        "s7plcRead %s/%u: offset out of range\n",
+        station->name, offset);
        return S_drv_badParam;
     }
     if (offset+nelem*dlen > station->inSize)
     {
        errlogSevPrintf(errlogMajor, 
-        "s7plcRead: too many elements (%u)\n", nelem);
+        "s7plcRead %s/%u: too many elements (%u)\n",
+        station->name, offset, nelem);
        return S_drv_badParam;
     }
     s7plcDebugLog(4,
@@ -394,13 +396,15 @@ int s7plcWriteMaskedArray(
     if (offset+dlen > station->outSize)
     {
         errlogSevPrintf(errlogMajor,
-            "s7plcWrite: offset %u out of range\n", offset);
+            "s7plcWrite %s/%d: offset out of range\n",
+            station->name, offset);
         return -1;
     }
     if (offset+nelem*dlen > station->outSize)
     {
         errlogSevPrintf(errlogMajor,
-            "s7plcWrite: too many elements (%u)\n", nelem);
+            "s7plcWrite %s/%d: too many elements (%u)\n",
+            station->name, offset, nelem);
         return -1;
     }
     s7plcDebugLog(4,
