@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2006/12/14 10:55:36 $ */
-/* $Id: drvS7plc.c,v 1.11 2006/12/14 10:55:36 zimoch Exp $ */
+/* $Date: 2006/12/14 10:58:05 $ */
+/* $Id: drvS7plc.c,v 1.12 2006/12/14 10:58:05 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.11 $ */
+/* $Revision: 1.12 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +47,7 @@
 #define __BYTE_ORDER _BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
+#undef epicsEventSignal
 #define epicsEventSignal semGive
 #else
 #include <endian.h>
@@ -57,7 +58,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.11 2006/12/14 10:55:36 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.12 2006/12/14 10:58:05 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
