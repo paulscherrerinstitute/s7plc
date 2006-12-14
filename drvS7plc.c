@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/12/21 14:02:17 $ */
-/* $Id: drvS7plc.c,v 1.10 2005/12/21 14:02:17 zimoch Exp $ */
+/* $Date: 2006/12/14 10:55:36 $ */
+/* $Id: drvS7plc.c,v 1.11 2006/12/14 10:55:36 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.10 $ */
+/* $Revision: 1.11 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +47,7 @@
 #define __BYTE_ORDER _BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
+#define epicsEventSignal semGive
 #else
 #include <endian.h>
 #endif
@@ -56,7 +57,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.10 2005/12/21 14:02:17 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.11 2006/12/14 10:55:36 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -358,7 +359,7 @@ int s7plcReadArray(
     }
     s7plcDebugLog(4,
         "s7plcReadArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
-        station, offset, dlen, nelem);
+        (void*) station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
     connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
@@ -409,7 +410,7 @@ int s7plcWriteMaskedArray(
     }
     s7plcDebugLog(4,
         "s7plcWriteMaskedArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
-        station, offset, dlen, nelem);
+        (void*) station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
     connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
@@ -511,7 +512,7 @@ void s7plcMain ()
             {    /* if suspended delete it */
                 s7plcDebugLog(0,
                     "s7plcMain %s: send thread %s %p is dead\n",
-                    station->name, threadname, station->sendThread);
+                    station->name, threadname, (void*) station->sendThread);
                 /* maybe we should cleanup the semaphores ? */
                 s7plcCloseConnection(station);
                 station->sendThread = 0;
@@ -540,7 +541,7 @@ void s7plcMain ()
             {    /* if suspended delete it */
                 s7plcDebugLog(0,
                     "s7plcMain %s: recv thread %s %p is dead\n",
-                    station->name, threadname, station->recvThread);
+                    station->name, threadname, (void*) station->recvThread);
                 /* maybe we should cleanup the semaphores ? */
                 s7plcCloseConnection(station);
                 station->recvThread = 0;
