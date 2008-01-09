@@ -1,0 +1,1 @@
+device(calcout,    INST_IO, s7plcCalcout,    "S7plc")
