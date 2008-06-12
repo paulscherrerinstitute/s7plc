@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2006/12/14 10:58:05 $ */
-/* $Id: drvS7plc.c,v 1.12 2006/12/14 10:58:05 zimoch Exp $ */
+/* $Date: 2008/06/12 14:42:09 $ */
+/* $Id: drvS7plc.c,v 1.13 2008/06/12 14:42:09 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.12 $ */
+/* $Revision: 1.13 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,10 +28,7 @@
 
 #include "drvS7plc.h"
 
-#if (EPICS_REVISION<14)
-/* R3.13 */
-#include "compat3_13.h"
-#else
+#if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
 /* R3.14 */
 #include <dbAccess.h>
 #include <iocsh.h>
@@ -41,14 +38,15 @@
 #include <epicsTimer.h>
 #include <epicsEvent.h>
 #include <epicsExport.h>
+#else
+/* R3.13 */
+#include "compat3_13.h"
 #endif
 
 #ifdef __vxworks
 #define __BYTE_ORDER _BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
-#undef epicsEventSignal
-#define epicsEventSignal semGive
 #else
 #include <endian.h>
 #endif
@@ -58,7 +56,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.12 2006/12/14 10:58:05 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.13 2008/06/12 14:42:09 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -68,6 +66,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station);
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
 STATIC int s7plcEstablishConnection(s7plcStation* station);
 STATIC void s7plcCloseConnection(s7plcStation* station);
+STATIC void s7plcSignal(void* event);
 s7plcStation* s7plcStationList = NULL;
 static epicsTimerQueueId timerqueue = NULL;
 
@@ -181,6 +180,11 @@ STATIC long s7plcInit()
     return 0;
 }
 
+STATIC void s7plcSignal(void* event)
+{
+    epicsEventSignal((epicsEventId)event);
+}
+
 int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, int bigEndian, int recvTimeout, int sendIntervall)
 {
     s7plcStation* station;
@@ -249,7 +253,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
             timerqueue = epicsTimerQueueAllocate(1, epicsThreadPriorityHigh);
         }
         station->timer = epicsTimerQueueCreateTimer(timerqueue,
-            (epicsTimerCallback) epicsEventSignal, station->outTrigger);
+            s7plcSignal, station->outTrigger);
     }
     scanIoInit(&station->inScanPvt);
     scanIoInit(&station->outScanPvt);
@@ -360,7 +364,7 @@ int s7plcReadArray(
     }
     s7plcDebugLog(4,
         "s7plcReadArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
-        (void*) station, offset, dlen, nelem);
+        station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
     connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
@@ -411,7 +415,7 @@ int s7plcWriteMaskedArray(
     }
     s7plcDebugLog(4,
         "s7plcWriteMaskedArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
-        (void*) station, offset, dlen, nelem);
+        station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
     connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
@@ -513,7 +517,7 @@ void s7plcMain ()
             {    /* if suspended delete it */
                 s7plcDebugLog(0,
                     "s7plcMain %s: send thread %s %p is dead\n",
-                    station->name, threadname, (void*) station->sendThread);
+                    station->name, threadname, station->sendThread);
                 /* maybe we should cleanup the semaphores ? */
                 s7plcCloseConnection(station);
                 station->sendThread = 0;
@@ -542,7 +546,7 @@ void s7plcMain ()
             {    /* if suspended delete it */
                 s7plcDebugLog(0,
                     "s7plcMain %s: recv thread %s %p is dead\n",
-                    station->name, threadname, (void*) station->recvThread);
+                    station->name, threadname, station->recvThread);
                 /* maybe we should cleanup the semaphores ? */
                 s7plcCloseConnection(station);
                 station->recvThread = 0;
