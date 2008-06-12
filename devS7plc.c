@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2005/12/21 14:02:17 $ */
-/* $Id: devS7plc.c,v 1.8 2005/12/21 14:02:17 zimoch Exp $ */
+/* $Date: 2008/06/12 14:34:22 $ */
+/* $Id: devS7plc.c,v 1.9 2008/06/12 14:34:22 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.8 $ */
+/* $Revision: 1.9 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -32,16 +32,18 @@
 #include <stringoutRecord.h>
 #include <waveformRecord.h>
 
-#if (EPICS_REVISION<14)
-/* R3.13 */
-#include "compat3_13.h"
-#else
+#if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
 /* R3.14 */
+#include <postfix.h>
 #include <calcoutRecord.h>
 #include <cantProceed.h>
 #include <epicsExport.h>
+#else
+/* R3.13 */
+#include "compat3_13.h"
 #endif
 
+/* suppress compiler warning concerning long long with __extension__ */
 #ifndef __GNUC__
 #define __extension__
 #endif
@@ -50,7 +52,7 @@
 
 typedef struct {              /* Private structure to save IO arguments */
     s7plcStation *station;    /* Card id */
-    unsigned short st_offs;   /* Offset (in bytes) within station memory */
+    unsigned short offs;      /* Offset (in bytes) within memory block */
     unsigned short bit;       /* Bit number (0-15) for bi/bo */
     unsigned short dtype;     /* Data type */
     unsigned short dlen;      /* Data length (in bytes) */
@@ -59,7 +61,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.8 2005/12/21 14:02:17 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.9 2008/06/12 14:34:22 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -334,20 +336,28 @@ struct devsup s7plcWaveform =
 
 epicsExportAddress(dset, s7plcWaveform);
 
-#if (EPICS_REVISION>=14)
 /* calcout **********************************************************/
+#if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
 
 STATIC long s7plcInitRecordCalcout(calcoutRecord *);
 STATIC long s7plcWriteCalcout(calcoutRecord *);
 
-struct devsup s7plcCalcout =
-{
-    5,
+struct {
+    long number;
+    DEVSUPFUN report;
+    DEVSUPFUN init;
+    DEVSUPFUN init_record;
+    DEVSUPFUN get_ioint_info;
+    DEVSUPFUN write;
+    DEVSUPFUN special_linconv;
+} s7plcCalcout = {
+    6,
     NULL,
     NULL,
     s7plcInitRecordCalcout,
     s7plcGetOutIntInfo,
-    s7plcWriteCalcout
+    s7plcWriteCalcout,
+    NULL
 };
 
 epicsExportAddress(dset, s7plcCalcout);
@@ -475,22 +485,22 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     /* Check station offset */
     if (separator == '/')
     {
-        priv->st_offs = strtol(p, &p, 0);
+        priv->offs = strtol(p, &p, 0);
         separator = *p++;
-        /* Handle any number of optional +o additions to the st_offs */
+        /* Handle any number of optional +o additions to the offs */
         while (separator == '+')
         {
-            priv->st_offs += strtol(p, &p, 0);
+            priv->offs += strtol(p, &p, 0);
             separator = *p++;
         }
     }
     else
     {
-        priv->st_offs = 0;
+        priv->offs = 0;
     }
 
     s7plcDebugLog(1,
-        "s7plcIoParse %s: st_offs=%d\n", recordName, priv->st_offs);
+        "s7plcIoParse %s: offs=%d\n", recordName, priv->offs);
 
     /* set default values for parameters */
     if (!priv->dtype && !priv->dlen)
@@ -773,7 +783,7 @@ STATIC long s7plcReadBi(biRecord *record)
     {
         case epicsInt8T:
         case epicsUInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "bi %s: read 8bit %02x\n",
                 record->name, rval8);
@@ -781,7 +791,7 @@ STATIC long s7plcReadBi(biRecord *record)
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "bi %s: read 16bit %04x\n",
                 record->name, rval16);
@@ -789,7 +799,7 @@ STATIC long s7plcReadBi(biRecord *record)
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "bi %s: read 32bit %04x\n",
                 record->name, rval32);
@@ -884,7 +894,7 @@ STATIC long s7plcWriteBo(boRecord *record)
             mask8 = record->mask;
             s7plcDebugLog(2, "bo %s: write 8bit %02x mask %02x\n",
                 record->name, rval8, mask8);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
         case epicsInt16T:
@@ -893,7 +903,7 @@ STATIC long s7plcWriteBo(boRecord *record)
             mask16 = record->mask;
             s7plcDebugLog(2, "bo %s: write 16bit %04x mask %04x\n",
                 record->name, rval16, mask16);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
         case epicsInt32T:
@@ -902,7 +912,7 @@ STATIC long s7plcWriteBo(boRecord *record)
             mask32 = record->mask;
             s7plcDebugLog(2, "bo %s: write 32bit %08x mask %08x\n",
                 record->name, rval32, mask32);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 4, &rval32, &mask32);
             break;
         default:
@@ -988,7 +998,7 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
     {
         case epicsInt8T:
         case epicsUInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "mbbi %s: read 8bit %02x\n",
                 record->name, rval8);
@@ -996,7 +1006,7 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "mbbi %s: read 16bit %04x\n",
                 record->name, rval16);
@@ -1004,7 +1014,7 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "mbbi %s: read 32bit %04x\n",
                 record->name, rval32);
@@ -1098,7 +1108,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
             mask8 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 8bit %02x mask %02x\n",
                 record->name, rval8, mask8);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
         case epicsInt16T:
@@ -1107,7 +1117,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
             mask16 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 16bit %04x mask %04x\n",
                 record->name, rval16, mask16);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
         case epicsInt32T:
@@ -1116,7 +1126,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
             mask32 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 32bit %08x mask %08x\n",
                 record->name, rval32, mask32);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 4, &rval32, &mask32);
             break;
         default:
@@ -1202,7 +1212,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
     {
         case epicsInt8T:
         case epicsUInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "mbbiDirect %s: read 8bit %02x\n",
                 record->name, rval8);
@@ -1210,7 +1220,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "mbbiDirect %s: read 16bit %04x\n",
                 record->name, rval16);
@@ -1218,7 +1228,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "mbbiDirect %s: read 32bit %08x\n",
                 record->name, rval32);
@@ -1312,7 +1322,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
             mask8 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 8bit %02x mask %02x\n",
                 record->name, rval8, mask8);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
         case epicsInt16T:
@@ -1321,7 +1331,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
             mask16 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 16bit %04x mask %04x\n",
                 record->name, rval16, mask16);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
         case epicsInt32T:
@@ -1330,7 +1340,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
             mask32 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 32bit %08x mask %08x\n",
                 record->name, rval32, mask32);
-            status = s7plcWriteMasked(priv->station, priv->st_offs,
+            status = s7plcWriteMasked(priv->station, priv->offs,
                 4, &rval32, &mask32);
             break;
         default:
@@ -1416,42 +1426,42 @@ STATIC long s7plcReadLongin(longinRecord *record)
     switch (priv->dtype)
     {
         case epicsInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &sval8);
             s7plcDebugLog(3, "longin %s: read 8bit %02x\n",
                 record->name, sval8);
             record->val = sval8;
             break;
         case epicsUInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &uval8);
             s7plcDebugLog(3, "longin %s: read 8bit %02x\n",
                 record->name, uval8);
             record->val = uval8;
             break;
         case epicsInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &sval16);
             s7plcDebugLog(3, "longin %s: read 16bit %04x\n",
                 record->name, sval16);
             record->val = sval16;
             break;
         case epicsUInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &uval16);
             s7plcDebugLog(3, "longin %s: read 16bit %04x\n",
                 record->name, sval16);
             record->val = uval16;
             break;
         case epicsInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &sval32);
             s7plcDebugLog(3, "longin %s: read 32bit %04x\n",
                 record->name, sval32);
             record->val = sval32;
             break;
         case epicsUInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &uval32);
             s7plcDebugLog(3, "longin %s: read 32bit %04x\n",
                 record->name, uval32);
@@ -1543,7 +1553,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
             rval8 = record->val;
             s7plcDebugLog(2, "longout %s: write 8bit %02x\n",
                 record->name, rval8);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
         case epicsInt16T:
@@ -1551,7 +1561,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
             rval16 = record->val;
             s7plcDebugLog(2, "longout %s: write 16bit %04x\n",
                 record->name, rval16);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
         case epicsInt32T:
@@ -1559,7 +1569,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
             rval32 = record->val;
             s7plcDebugLog(2, "longout %s: write 32bit %08x\n",
                 record->name, rval32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &rval32);
             break;
         default:
@@ -1649,49 +1659,49 @@ STATIC long s7plcReadAi(aiRecord *record)
     switch (priv->dtype)
     {
         case epicsInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &sval8);
             s7plcDebugLog(3, "ai %s: read 8bit %02x\n",
                 record->name, sval8);
             record->rval = sval8;
             break;
         case epicsUInt8T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 1, &uval8);
             s7plcDebugLog(3, "ai %s: read 8bit %02x\n",
                 record->name, uval8);
             record->rval = uval8;
             break;
         case epicsInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &sval16);
             s7plcDebugLog(3, "ai %s: read 16bit %04x\n",
                 record->name, sval16);
             record->rval = sval16;
             break;
         case epicsUInt16T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 2, &uval16);
             s7plcDebugLog(3, "ai %s: read 16bit %04x\n",
                 record->name, uval16);
             record->rval = uval16;
             break;
         case epicsInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &sval32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x\n",
                 record->name, sval32);
             record->rval = sval32;
             break;
         case epicsUInt32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &uval32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x\n",
                 record->name, uval32);
             record->rval = uval32;
             break;
         case epicsFloat32T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 4, &val32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x = %g\n",
                 record->name, *(unsigned int*) &val32, val32);
@@ -1699,7 +1709,7 @@ STATIC long s7plcReadAi(aiRecord *record)
             floatval = TRUE;
             break;
         case epicsFloat64T:
-            status = s7plcRead(priv->station, priv->st_offs,
+            status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
             __extension__ s7plcDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
                 record->name, *(long long*) &val64, val64);
@@ -1828,7 +1838,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             rval8 = rval32;
             s7plcDebugLog(2, "ao %s: write 8bit %02x\n",
                 record->name, rval8 & 0xff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
         case epicsUInt8T:
@@ -1837,7 +1847,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             rval8 = rval32;
             s7plcDebugLog(2, "ao %s: write 8bit %02x\n",
                 record->name, rval8 & 0xff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
         case epicsInt16T:
@@ -1846,7 +1856,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             rval16 = rval32;
             s7plcDebugLog(2, "ao %s: write 16bit %04x\n",
                 record->name, rval16 & 0xffff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
         case epicsUInt16T:
@@ -1855,7 +1865,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             rval16 = rval32;
             s7plcDebugLog(2, "ao %s: write 16bit %04x\n",
                 record->name, rval16 & 0xffff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
         case epicsInt32T:
@@ -1863,7 +1873,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             if (record->rval < priv->hwLow) rval32 = priv->hwLow;
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
                 record->name, rval32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &rval32);
             break;
         case epicsUInt32T:
@@ -1871,7 +1881,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             if (rval32 < (epicsUInt32)priv->hwLow) rval32 = priv->hwLow;
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
                 record->name, rval32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &rval32);
             break;
         case epicsFloat32T:
@@ -1881,7 +1891,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
                 record->name, *(epicsInt32*)&val32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
         case epicsFloat64T:
@@ -1891,7 +1901,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             
             __extension__ s7plcDebugLog(2, "ao %s: write 64bit %016Lx\n",
                 record->name, *(long long*)&val64);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
             break;
         default:
@@ -1986,7 +1996,7 @@ STATIC long s7plcReadStringin(stringinRecord *record)
     }
     assert(priv->station);
     memset(record->val, 0, priv->dlen);
-    status = s7plcReadArray(priv->station, priv->st_offs,
+    status = s7plcReadArray(priv->station, priv->offs,
                 1, priv->dlen, record->val);
     s7plcDebugLog(3, "stringin %s: read array of %d 8bit values\n",
         record->name, priv->dlen);
@@ -2067,7 +2077,7 @@ STATIC long s7plcWriteStringout(stringoutRecord *record)
     assert(priv->station);
     s7plcDebugLog(2, "stringout %s: write %d 8bit values: \"%.*s\"\n",
         record->name, priv->dlen, priv->dlen, record->val);
-    status = s7plcWriteArray(priv->station, priv->st_offs,
+    status = s7plcWriteArray(priv->station, priv->offs,
         1, priv->dlen, record->val);
     if (status == S_drv_noConn)
     {
@@ -2246,7 +2256,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
         case epicsInt8T:
         case epicsUInt8T:
         case epicsStringT:
-            status = s7plcReadArray(priv->station, priv->st_offs,
+            status = s7plcReadArray(priv->station, priv->offs,
                 1, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 8bit to %p\n",
@@ -2254,7 +2264,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            status = s7plcReadArray(priv->station, priv->st_offs,
+            status = s7plcReadArray(priv->station, priv->offs,
                 2, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 16bit to %p\n",
@@ -2263,21 +2273,21 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
         case epicsInt32T:
         case epicsUInt32T:
         case epicsFloat32T:
-            status = s7plcReadArray(priv->station, priv->st_offs,
+            status = s7plcReadArray(priv->station, priv->offs,
                 4, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 32bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case epicsFloat64T:
-            status = s7plcReadArray(priv->station, priv->st_offs,
+            status = s7plcReadArray(priv->station, priv->offs,
                 8, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 64bit to %p\n",
                 record->name, record->nelm, record->bptr);
             break;
         case S7MEM_TIME:
-            status = s7plcReadArray(priv->station, priv->st_offs,
+            status = s7plcReadArray(priv->station, priv->offs,
                 1, 8, Time);
             s7plcDebugLog(3,
                 "waveform %s: read 8 values of 8bit to %p\n",
@@ -2383,7 +2393,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) sval8 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
                 record->name, sval8 & 0xff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 1, &sval8);
             break;
         case epicsUInt8T:
@@ -2392,7 +2402,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) uval8 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
                 record->name, uval8 & 0xff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 1, &uval8);
             break;
         case epicsInt16T:
@@ -2401,7 +2411,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) sval16 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
                 record->name, sval16 & 0xffff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 2, &sval16);
             break;
         case epicsUInt16T:
@@ -2410,7 +2420,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) uval16 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
                 record->name, uval16 & 0xffff);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 2, &uval16);
             break;
         case epicsInt32T:
@@ -2419,7 +2429,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) sval32 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
                 record->name, sval32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &sval32);
             break;
         case epicsUInt32T:
@@ -2428,20 +2438,20 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             if (val64 < priv->hwLow) uval32 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
                 record->name, uval32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &uval32);
             break;
         case epicsFloat32T:
             val32 = val64;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
                 record->name, *(epicsInt32*)&val32);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
         case epicsFloat64T:
             __extension__ s7plcDebugLog(2, "calcout %s: write 64bit %016Lx\n",
                 record->name, *(long long*)&val64);
-            status = s7plcWrite(priv->station, priv->st_offs,
+            status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
             break;
         default:
