@@ -1,4 +1,4 @@
-TOP=../..
+TOP=..
 
 ifeq ($(wildcard $(TOP)/configure),)
 
@@ -16,9 +16,6 @@ HOST_OPT = NO
 
 # Want local functions non-static? Define DEBUG 
 #CFLAGS += -DDEBUG
-
-# Any warning is a bug
-CFLAGS += -Werror
 
 # library
 

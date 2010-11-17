@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2008/06/12 14:34:22 $ */
-/* $Id: devS7plc.c,v 1.9 2008/06/12 14:34:22 zimoch Exp $ */
+/* $Date: 2010/11/17 10:45:02 $ */
+/* $Id: devS7plc.c,v 1.10 2010/11/17 10:45:02 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.9 $ */
+/* $Revision: 1.10 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -14,6 +14,7 @@
 #include <recGbl.h>
 #include <devSup.h>
 #include <devLib.h>
+#include <errlog.h>
 
 #include <epicsVersion.h>
 #include <drvS7plc.h>
@@ -61,7 +62,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.9 2008/06/12 14:34:22 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.10 2010/11/17 10:45:02 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -2260,7 +2261,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
                 1, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 8bit to %p\n",
-                record->name, record->nelm, record->bptr);
+                record->name, (long) record->nelm, record->bptr);
             break;
         case epicsInt16T:
         case epicsUInt16T:
@@ -2268,7 +2269,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
                 2, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 16bit to %p\n",
-                record->name, record->nelm, record->bptr);
+                record->name, (long) record->nelm, record->bptr);
             break;
         case epicsInt32T:
         case epicsUInt32T:
@@ -2277,14 +2278,14 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
                 4, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 32bit to %p\n",
-                record->name, record->nelm, record->bptr);
+                record->name, (long) record->nelm, record->bptr);
             break;
         case epicsFloat64T:
             status = s7plcReadArray(priv->station, priv->offs,
                 8, record->nelm, record->bptr);
             s7plcDebugLog(3,
                 "waveform %s: read %ld values of 64bit to %p\n",
-                record->name, record->nelm, record->bptr);
+                record->name, (long) record->nelm, record->bptr);
             break;
         case S7MEM_TIME:
             status = s7plcReadArray(priv->station, priv->offs,

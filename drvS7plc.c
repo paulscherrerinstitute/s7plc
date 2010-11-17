@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2008/06/12 14:42:09 $ */
-/* $Id: drvS7plc.c,v 1.13 2008/06/12 14:42:09 zimoch Exp $ */
+/* $Date: 2010/11/17 10:45:02 $ */
+/* $Id: drvS7plc.c,v 1.14 2010/11/17 10:45:02 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.13 $ */
+/* $Revision: 1.14 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +24,7 @@
 
 #include <drvSup.h>
 #include <devLib.h>
+#include <errlog.h>
 #include <epicsVersion.h>
 
 #include "drvS7plc.h"
@@ -56,7 +57,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.13 2008/06/12 14:42:09 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.14 2010/11/17 10:45:02 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
