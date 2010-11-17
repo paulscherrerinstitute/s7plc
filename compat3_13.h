@@ -14,6 +14,16 @@
 *   epicsEvent.h
 *   cantProceed.h
 *
+* Usage:
+*  #include <epicsVersion.h>
+*  #if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
+*  #include <cantProceed.h>
+*  #include <epicsMutex.h>
+*  ...
+*  #else
+*  #include "compat3_13.h"
+*  #endif
+*
 * It is not complete and only simulates the C interfaces (not C++).
 * It uses some gcc extensions and might not work with other compilers.
 * It requires vxWorks.
