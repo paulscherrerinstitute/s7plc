@@ -1,5 +1,5 @@
-#!../../bin/linux-x86/s7plcApp
-dbLoadDatabase ../../dbd/s7plcApp.dbd
+#!O.linux-x86/s7plcApp
+dbLoadDatabase O.Common/s7plcApp.dbd
 s7plcApp_registerRecordDeviceDriver
 
 #var s7plcDebug <level>
