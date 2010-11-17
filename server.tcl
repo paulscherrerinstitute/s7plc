@@ -26,7 +26,7 @@ proc makeGUI {{parent {}}} {
                 -width 2 -validate key \
                 -validatecommand "validateHex %W $row $col %P %S %i"]
             bindtags $e [concat $e [winfo toplevel $e] Input InputHex]
-            grid $e -row $row -col $col
+            grid $e -row $row -column $col
         }
     }
     set i 0
@@ -35,7 +35,7 @@ proc makeGUI {{parent {}}} {
             -width 16 -validate key\
             -validatecommand "validateString %W $row %P %S %i"]
             bindtags $e [concat $e [winfo toplevel $e] Input InputString]
-        grid $e -row $row -col $col
+        grid $e -row $row -column $col
         for {set col 0} {$col < 16} {incr col} {
             if {$i < $upsize} {
                 scan [string index $updata $i] "%c" v
@@ -55,11 +55,11 @@ proc makeGUI {{parent {}}} {
         for {set col 0} {$col < 16} {incr col} {
             set e [label $f.hexlabel_${row}_$col \
                 -width 2 -relief raised]
-            grid $e -row [expr $row+$baserow] -col $col
+            grid $e -row [expr $row+$baserow] -column $col
         }
         set e [label $f.stringlabel_$row \
             -width 16  -relief raised]
-        grid $e -row [expr $row+$baserow] -col $col
+        grid $e -row [expr $row+$baserow] -column $col
     }
     trace variable downdata w "updataData $f"
     pack $f
