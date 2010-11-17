@@ -1,0 +1,686 @@
+record (bi, "s7-status") {
+  field (DTYP, "S7plc stat")
+  field (INP,  "@Testsystem:0")
+  field (SCAN, "I/O Intr")
+  field (ZNAM, "disconnected")
+  field (ONAM, "connected")
+  field (ZSV,  "MAJOR")
+  field (FLNK, "s7-status-counter")
+}
+
+record (calc, "s7-status-counter")
+{
+   field (INPA, "s7-status-counter")
+   field (CALC, "A+1")
+   field (FLNK, "s7-disconnect-counter")
+}
+
+record (calc, "s7-disconnect-counter")
+{
+   field (INPA, "s7-status")
+   field (INPB, "s7-disconnect-counter.LA")
+   field (INPC, "s7-disconnect-counter")
+   field (CALC, "(A=0&&B=1)?C+1:C")
+}
+
+record (ai, "ai-int16-1") {
+  # map range 0 ... 1000 to 0.0000 ... 10.0000
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 'T=INT16 L=0 H=1000'")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "2")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-int16-2") {
+  # map range -0x7fff ... 0x7fff to -32767 ... 32767  (i.e. no conversion)
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/2")
+  field (EGUL, "-32767")
+  field (EGUF, "32767")
+  field (LOPR, "-32767")
+  field (HOPR, "32767")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-int16-3") {
+  # map range -0x7fff ... 0x7fff to -10.0000 ... 10.0000
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/4 T=INT16")
+  field (LINR, "LINEAR")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (PREC, "4")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-int16-4") {
+  # map range 0x0000 ... 0xffff to -5.00 ... 5.00
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/6 'T=UNSIGN16'")
+  field (LINR, "LINEAR")
+  field (EGUL, "-5")
+  field (EGUF, "5")
+  field (LOPR, "-5")
+  field (HOPR, "5")
+  field (PREC, "4")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-int32-1") {
+  # map range -0x7fffffff ... 0x7fffffff to -10.0000 ... 10.0000
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/8 T=INT32")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "8")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-int32-2") {
+  # map range 0x00000000 ... 0x00ffffff to -10.00 ... 10.00
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/12 T=UINT32 H=0x00ffffff")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "7")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-float-1") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/16 T=FLOAT")
+  field (PREC, "6")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-float-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/20 T=FLOAT")
+  field (PREC, "6")
+  field (SCAN, "I/O Intr")
+}
+
+record (ai, "ai-double") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/24 T=DOUBLE")
+  field (PREC, "12")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int16-1") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int16-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/2 T=INT16")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int16-3") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/4 'T=UINT16'")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int16-4") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/6 'T=UNSIGN16'")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int32-1") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/8 T=INT32")
+  field (SCAN, "I/O Intr")
+}
+
+record (longin, "li-int32-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/12 T=UINT32")
+  field (SCAN, "I/O Intr")
+}
+
+record (mbbi, "mbbi-int16") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/1")
+  field (NOBT, "16")
+  field (SCAN, "I/O Intr")
+}
+
+record (mbbiDirect, "mbbiD-int16") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/1")
+# read only bits 3-9
+  field (NOBT, "7")
+  field (SHFT, "3")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-0") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=0")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-1") {
+  field (DTYP, "S7plc")
+  field (INP, "@Testsystem:0/0 B=1")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=2")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-3") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=3")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-4") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=4")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-5") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=5")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-6") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=6")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-7") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=7")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-8") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=8")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-9") {
+  field (DTYP, "S7plc")
+  field (INP, "@Testsystem:0/0 B=9")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-10") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=10")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-11") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=11")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-12") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=12")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-13") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=13")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-14") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=14")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (bi, "bi-15") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0 B=15")
+  field (ZSV,  "MAJOR")
+  field (SCAN, "I/O Intr")
+}
+
+record (stringin, "si-1") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/32")
+#string length is 40 (size of VAL field)
+  field (SCAN, "I/O Intr")
+}
+
+record (stringin, "si-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/40 L=8")
+#string length is 8
+  field (SCAN, "I/O Intr")
+}
+
+record (waveform, "wf-int8") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/32")
+  field (FTVL, "CHAR")
+  field (NELM, "48")
+  field (SCAN, "I/O Intr")
+}
+
+record (waveform, "wf-int16") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0")
+  field (FTVL, "SHORT")
+  field (NELM, "40")
+  field (SCAN, "I/O Intr")
+}
+
+record (waveform, "wf-int16") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem:0/0")
+  field (FTVL, "LONG")
+  field (NELM, "20")
+  field (SCAN, "I/O Intr")
+}
+
+record (ao, "ao-int16-1") {
+  # map range 0.0000 ... 10.0000 to 0 ... 1000
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/0 'T=INT16 L=-1000 H=1000'")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "2")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-int16-2") {
+  # map range -32767 ... 32767 to -0x7fff ... 0x7fff  (i.e. no conversion)
+  field (DTYP, "S7plc")
+  field (LOPR, "-32767")
+  field (HOPR, "32767")
+  field (OUT,  "@Testsystem:0/2")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-int16-3") {
+  # map range -10.0000 ... 10.0000 to -0x7fff ... 0x7fff
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/4 T=INT16")
+  field (LINR, "LINEAR")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (PREC, "4")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-int16-4") {
+  # map range -5.00 ... 5.00 to 0x0000 ... 0xffff
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/6 'T=UNSIGN16'")
+  field (LINR, "LINEAR")
+  field (EGUL, "-5")
+  field (EGUF, "5")
+  field (DRVL, "-10")
+  field (DRVH, "10")
+  field (LOPR, "-5")
+  field (HOPR, "5")
+  field (PREC, "4")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-int32-1") {
+  # map range -10.0000 ... 10.0000 to -0x7fffffff ... 0x7fffffff
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/8 T=INT32")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "8")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-int32-2") {
+  # map range -10.00 ... 10.00 to 0x00000000 ... 0x00ffffff
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/12 T=UINT32 H=0x00ffffff")
+  field (EGUL, "-10")
+  field (EGUF, "10")
+  field (LOPR, "-10")
+  field (HOPR, "10")
+  field (LINR, "LINEAR")
+  field (PREC, "7")
+  field (DOL,  "1.2345")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-float-1") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/16 T=FLOAT")
+  field (PREC, "6")
+  field (DOL,  "0.1")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-float-2") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/20 T=FLOAT")
+  field (PREC, "6")
+  field (DOL,  "0.2")
+  field (PINI, "YES")
+}
+
+record (ao, "ao-double") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/24 T=DOUBLE")
+  field (PREC, "12")
+  field (DOL,  "0.3")
+  field (PINI, "YES")
+}
+
+record (stringout, "so-1")
+{
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/32")
+#string length is 40 (size of VAL field)
+  field (VAL,  "This is a test string")
+  field (PINI, "YES")
+}
+
+record (calc, "lo-int16-counter")
+{
+  field (INPA, "lo-int16-counter")
+  field (CALC, "A+1")
+  field (PINI, "YES")
+}
+
+record (longout, "lo-int16-1") {
+  field (DOL,  "lo-int16-counter PP")
+  field (OMSL, "closed_loop")
+  field (SCAN, "I/O Intr")
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/72")
+  field (LOPR, "-1000")
+  field (HOPR, "1000")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-0") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=0")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-1") {
+  field (DTYP, "S7plc")
+  field (OUT, "@Testsystem:0/74 B=1")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-2") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=2")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-3") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=3")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-4") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=4")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-5") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=5")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-6") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=6")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-7") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=7")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-8") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=8")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-9") {
+  field (DTYP, "S7plc")
+  field (OUT, "@Testsystem:0/74 B=9")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-10") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=10")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-11") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=11")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-12") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=12")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-13") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=13")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-14") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=14")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-15") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/74 B=15")
+  field (ZNAM, "O")
+  field (ONAM, "I")
+  field (PINI, "YES")
+}
+
+record (mbboDirect, "mbboD-int16") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/76")
+  field (NOBT, "16")
+  field (PINI, "YES")
+}
+
+record (mbbo, "mbbo-int16-1") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/78")
+  field (NOBT, "3")
+  field (PINI, "YES")
+  field (ZRST, "Mo")
+  field (ZRVL, "1")
+  field (ONST, "Tu")
+  field (ONVL, "2")
+  field (TWST, "We")
+  field (TWVL, "3")
+  field (THST, "Th")
+  field (THVL, "4")
+  field (FRST, "Fr")
+  field (FRVL, "5")
+  field (FVST, "Sa")
+  field (FVVL, "6")
+  field (SXST, "Su")
+  field (SXVL, "7")
+  field (PINI, "YES")
+}
+
+record (mbbo, "mbbo-int16-2") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/78")
+  field (NOBT, "4")
+  field (SHFT, "3")
+  field (PINI, "YES")
+  field (ZRST, "Jan")
+  field (ZRVL, "1")
+  field (ONST, "Feb")
+  field (ONVL, "2")
+  field (TWST, "Mar")
+  field (TWVL, "3")
+  field (THST, "Apr")
+  field (THVL, "4")
+  field (FRST, "May")
+  field (FRVL, "5")
+  field (FVST, "Jun")
+  field (FVVL, "6")
+  field (SXST, "Jul")
+  field (SXVL, "7")
+  field (SVST, "Aug")
+  field (SVVL, "8")
+  field (EIST, "Sep")
+  field (EIVL, "9")
+  field (NIST, "Oct")
+  field (NIVL, "10")
+  field (TEST, "Nov")
+  field (TEVL, "11")
+  field (ELST, "Dec")
+  field (ELVL, "12")
+  field (PINI, "YES")
+}
+
+record (mbbo, "mbbo-int16-3") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem:0/78")
+  field (NOBT, "6")
+  field (SHFT, "7")
+  field (PINI, "YES")
+  field (ZRST, "1995")
+  field (ZRVL, "1")
+  field (ONST, "1996")
+  field (ONVL, "34")
+  field (TWST, "1997")
+  field (TWVL, "3")
+  field (THST, "1998")
+  field (THVL, "4")
+  field (FRST, "1999")
+  field (FRVL, "5")
+  field (FVST, "2000")
+  field (FVVL, "38")
+  field (SXST, "2001")
+  field (SXVL, "7")
+  field (SVST, "2002")
+  field (SVVL, "8")
+  field (EIST, "2003")
+  field (EIVL, "9")
+  field (NIST, "2004")
+  field (NIVL, "42")
+  field (TEST, "2005")
+  field (TEVL, "11")
+  field (ELST, "2006")
+  field (ELVL, "12")
+  field (TVST, "2007")
+  field (TVVL, "13")
+  field (TTST, "2008")
+  field (TTVL, "46")
+  field (FTST, "2009")
+  field (FTVL, "15")
+  field (FFST, "2010")
+  field (FFVL, "16")
+  field (PINI, "YES")
+}
