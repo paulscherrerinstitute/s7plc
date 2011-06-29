@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2010/11/17 10:45:02 $ */
-/* $Id: devS7plc.c,v 1.10 2010/11/17 10:45:02 zimoch Exp $ */
+/* $Date: 2011/06/29 14:59:54 $ */
+/* $Id: devS7plc.c,v 1.11 2011/06/29 14:59:54 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.10 $ */
+/* $Revision: 1.11 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -62,7 +62,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.10 2010/11/17 10:45:02 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.11 2011/06/29 14:59:54 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -706,14 +706,13 @@ STATIC long s7plcReadStat(biRecord *record)
     status = s7plcReadArray(priv->station, 0, 0, 0, NULL);
     if (status == S_drv_noConn)
     {
-        errlogSevPrintf(errlogFatal,
-            "%s: read error\n", record->name);
         record->rval = 0;
         return 0;
     }
     if (status)
     {
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
+        record->rval = 0;
         return status;
     }
     record->rval = 1;
@@ -816,7 +815,7 @@ STATIC long s7plcReadBi(biRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -926,7 +925,7 @@ STATIC long s7plcWriteBo(boRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1031,7 +1030,7 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1140,7 +1139,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1245,7 +1244,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1353,7 +1352,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1478,7 +1477,7 @@ STATIC long s7plcReadLongin(longinRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1583,7 +1582,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1726,7 +1725,7 @@ STATIC long s7plcReadAi(aiRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -1915,7 +1914,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -2009,7 +2008,7 @@ STATIC long s7plcReadStringin(stringinRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -2083,7 +2082,7 @@ STATIC long s7plcWriteStringout(stringoutRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -2308,7 +2307,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
@@ -2465,7 +2464,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-        return 0;
+        return status;
     }
     if (status)
     {
