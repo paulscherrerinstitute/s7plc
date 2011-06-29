@@ -1,13 +1,14 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/06/29 14:59:54 $ */
-/* $Id: devS7plc.c,v 1.11 2011/06/29 14:59:54 zimoch Exp $ */
+/* $Date: 2011/06/29 16:08:21 $ */
+/* $Id: devS7plc.c,v 1.12 2011/06/29 16:08:21 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.11 $ */
+/* $Revision: 1.12 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include <alarm.h>
 #include <dbAccess.h>
@@ -49,6 +50,14 @@
 #define __extension__
 #endif
 
+#ifndef epicsUInt64
+#if (LONG_MAX > 2147483647L)
+#define epicsUInt64 unsigned long 
+#else
+#define epicsUInt64 unsigned long long
+#endif
+#endif
+
 #define S7MEM_TIME 100
 
 typedef struct {              /* Private structure to save IO arguments */
@@ -62,7 +71,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.11 2011/06/29 14:59:54 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.12 2011/06/29 16:08:21 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1646,8 +1655,8 @@ STATIC long s7plcReadAi(aiRecord *record)
     epicsUInt16 uval16;
     epicsInt32 sval32;
     epicsUInt32 uval32;
-    epicsFloat32 val32;
-    epicsFloat64 val64;
+    union {epicsFloat32 f; epicsUInt32 i; } val32;
+    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -1704,15 +1713,15 @@ STATIC long s7plcReadAi(aiRecord *record)
             status = s7plcRead(priv->station, priv->offs,
                 4, &val32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x = %g\n",
-                record->name, *(unsigned int*) &val32, val32);
-            val64 = val32;
+                record->name, val32.i, val32.f);
+            val64.f = val32.f;
             floatval = TRUE;
             break;
         case epicsFloat64T:
             status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
             __extension__ s7plcDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
-                record->name, *(long long*) &val64, val64);
+                record->name, val64.i, val64.f);
             floatval = TRUE;
             break;
         default:
@@ -1737,14 +1746,14 @@ STATIC long s7plcReadAi(aiRecord *record)
     if (floatval)
     {
         /* emulate scaling */
-        if (record->aslo != 0.0) val64 *= record->aslo;
-        val64 += record->aoff;
+        if (record->aslo != 0.0) val64.f *= record->aslo;
+        val64.f += record->aoff;
         if (record->udf)
-            record->val = val64;
+            record->val = val64.f;
         else
             /* emulate smoothing */
             record->val = record->val * record->smoo +
-                val64 * (1.0 - record->smoo);
+                val64.f * (1.0 - record->smoo);
         record->udf = FALSE;
         return 2;
     }
@@ -1818,8 +1827,8 @@ STATIC long s7plcWriteAo(aoRecord *record)
     epicsUInt8 rval8;
     epicsUInt16 rval16;
     epicsUInt32 rval32;
-    epicsFloat32 val32;
-    epicsFloat64 val64;
+    union {epicsFloat32 f; epicsUInt32 i; } val32;
+    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -1886,21 +1895,19 @@ STATIC long s7plcWriteAo(aoRecord *record)
             break;
         case epicsFloat32T:
             /* emulate scaling */
-            val32 = record->oval - record->aoff;
-            if (record->aslo != 0) val32 /= record->aslo;
-            
-            s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
-                record->name, *(epicsInt32*)&val32);
+            val32.f = record->oval - record->aoff;
+            if (record->aslo != 0) val32.f /= record->aslo;
+            s7plcDebugLog(2, "ao %s: write 32bit %08x = %g\n",
+                record->name, val32.i, val32.f);
             status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
         case epicsFloat64T:
             /* emulate scaling */
-            val64 = record->oval - record->aoff;
-            if (record->aslo != 0) val64 /= record->aslo;
-            
-            __extension__ s7plcDebugLog(2, "ao %s: write 64bit %016Lx\n",
-                record->name, *(long long*)&val64);
+            val64.f = record->oval - record->aoff;
+            if (record->aslo != 0) val64.f /= record->aslo;
+            __extension__ s7plcDebugLog(2, "ao %s: write 64bit %016Lx = %g\n",
+                record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
             break;
@@ -2373,8 +2380,8 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
     epicsInt8 sval8;
     epicsInt16 sval16;
     epicsInt32 sval32;
-    epicsFloat32 val32;
-    epicsFloat64 val64;
+    union {epicsFloat32 f; epicsUInt32 i; } val32;
+    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -2384,73 +2391,73 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
         return -1;
     }
     assert(priv->station);
-    val64 = record->oval;
+    val64.f = record->oval;
     switch (priv->dtype)
     {
         case epicsInt8T:
-            sval8 = val64;
-            if (val64 > priv->hwHigh) sval8 = priv->hwHigh;
-            if (val64 < priv->hwLow) sval8 = priv->hwLow;
+            sval8 = val64.f;
+            if (val64.f > priv->hwHigh) sval8 = priv->hwHigh;
+            if (val64.f < priv->hwLow) sval8 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
                 record->name, sval8 & 0xff);
             status = s7plcWrite(priv->station, priv->offs,
                 1, &sval8);
             break;
         case epicsUInt8T:
-            uval8 = val64;
-            if (val64 > priv->hwHigh) uval8 = priv->hwHigh;
-            if (val64 < priv->hwLow) uval8 = priv->hwLow;
+            uval8 = val64.f;
+            if (val64.f > priv->hwHigh) uval8 = priv->hwHigh;
+            if (val64.f < priv->hwLow) uval8 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 8bit %02x\n",
                 record->name, uval8 & 0xff);
             status = s7plcWrite(priv->station, priv->offs,
                 1, &uval8);
             break;
         case epicsInt16T:
-            sval16 = val64;
-            if (val64 > priv->hwHigh) sval16 = priv->hwHigh;
-            if (val64 < priv->hwLow) sval16 = priv->hwLow;
+            sval16 = val64.f;
+            if (val64.f > priv->hwHigh) sval16 = priv->hwHigh;
+            if (val64.f < priv->hwLow) sval16 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
                 record->name, sval16 & 0xffff);
             status = s7plcWrite(priv->station, priv->offs,
                 2, &sval16);
             break;
         case epicsUInt16T:
-            uval16 = val64;
-            if (val64 > priv->hwHigh) uval16 = priv->hwHigh;
-            if (val64 < priv->hwLow) uval16 = priv->hwLow;
+            uval16 = val64.f;
+            if (val64.f > priv->hwHigh) uval16 = priv->hwHigh;
+            if (val64.f < priv->hwLow) uval16 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 16bit %04x\n",
                 record->name, uval16 & 0xffff);
             status = s7plcWrite(priv->station, priv->offs,
                 2, &uval16);
             break;
         case epicsInt32T:
-            sval32 = val64;
-            if (val64 > priv->hwHigh) sval32 = priv->hwHigh;
-            if (val64 < priv->hwLow) sval32 = priv->hwLow;
+            sval32 = val64.f;
+            if (val64.f > priv->hwHigh) sval32 = priv->hwHigh;
+            if (val64.f < priv->hwLow) sval32 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
                 record->name, sval32);
             status = s7plcWrite(priv->station, priv->offs,
                 4, &sval32);
             break;
         case epicsUInt32T:
-            uval32 = val64;
-            if (val64 > priv->hwHigh) uval32 = priv->hwHigh;
-            if (val64 < priv->hwLow) uval32 = priv->hwLow;
+            uval32 = val64.f;
+            if (val64.f > priv->hwHigh) uval32 = priv->hwHigh;
+            if (val64.f < priv->hwLow) uval32 = priv->hwLow;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
                 record->name, uval32);
             status = s7plcWrite(priv->station, priv->offs,
                 4, &uval32);
             break;
         case epicsFloat32T:
-            val32 = val64;
-            s7plcDebugLog(2, "calcout %s: write 32bit %08x\n",
-                record->name, *(epicsInt32*)&val32);
+            val32.f = val64.f;
+            s7plcDebugLog(2, "calcout %s: write 32bit %08x = %g\n",
+                record->name, val32.i, val32.f);
             status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
         case epicsFloat64T:
-            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit %016Lx\n",
-                record->name, *(long long*)&val64);
+            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit %016Lx = %g\n",
+                record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
             break;
