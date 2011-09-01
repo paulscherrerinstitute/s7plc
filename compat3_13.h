@@ -69,6 +69,7 @@
 #define epicsThreadPriorityLow    10
 #define epicsThreadPriorityMedium 50
 #define epicsThreadPriorityHigh   90
+#define epicsThreadStackBig      20000  /* io thread stack size */
 
 #define epicsThreadCreate(name, pri, stack, func, args) \
     (void*)taskSpawn((name), 255-(pri)*255/99, VX_FP_TASK, (stack), (FUNCPTR)(func), (int)(args), \
@@ -76,6 +77,7 @@
     
 #define epicsThreadSleep(sec) taskDelay((sec)*sysClkRateGet())
 #define epicsThreadIsSuspended(t) (taskIdVerify((int)(t)) || taskIsSuspended((int)(t)))
+#define epicsThreadGetStackSize(stack) (stack)
 
 /* epicsTimer */
 #include <wdLib.h>

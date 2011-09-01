@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/06/29 16:08:21 $ */
-/* $Id: devS7plc.c,v 1.12 2011/06/29 16:08:21 zimoch Exp $ */
+/* $Date: 2011/09/01 07:31:44 $ */
+/* $Id: devS7plc.c,v 1.13 2011/09/01 07:31:44 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.12 $ */
+/* $Revision: 1.13 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -46,15 +46,17 @@
 #endif
 
 /* suppress compiler warning concerning long long with __extension__ */
-#ifndef __GNUC__
+#if (!defined __GNUC__) || (__GNUC__ < 2) || (__GNUC__ == 2 && __GNUC_MINOR__ < 8)
 #define __extension__
 #endif
 
 #ifndef epicsUInt64
 #if (LONG_MAX > 2147483647L)
-#define epicsUInt64 unsigned long 
+#define epicsUInt64 unsigned long
+#define CONV64 "%016lx"
 #else
 #define epicsUInt64 unsigned long long
+#define CONV64 "%016llx"
 #endif
 #endif
 
@@ -71,7 +73,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.12 2011/06/29 16:08:21 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.13 2011/09/01 07:31:44 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1720,7 +1722,7 @@ STATIC long s7plcReadAi(aiRecord *record)
         case epicsFloat64T:
             status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
-            __extension__ s7plcDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
+            __extension__ s7plcDebugLog(3, "ai %s: read 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             floatval = TRUE;
             break;
@@ -1906,7 +1908,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             /* emulate scaling */
             val64.f = record->oval - record->aoff;
             if (record->aslo != 0) val64.f /= record->aslo;
-            __extension__ s7plcDebugLog(2, "ao %s: write 64bit %016Lx = %g\n",
+            __extension__ s7plcDebugLog(2, "ao %s: write 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
@@ -1982,7 +1984,7 @@ STATIC long s7plcInitRecordStringin(stringinRecord *record)
     {
         errlogSevPrintf(errlogMinor,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val));
+            record->name, priv->dlen, (int)sizeof(record->val));
         priv->dlen = sizeof(record->val);
     }
     record->dpvt = priv;
@@ -2062,7 +2064,7 @@ STATIC long s7plcInitRecordStringout(stringoutRecord *record)
     {
         errlogSevPrintf(errlogMinor,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val));
+            record->name, priv->dlen, (int)sizeof(record->val));
         priv->dlen = sizeof(record->val);
     }
     record->dpvt = priv;
@@ -2456,7 +2458,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
                 4, &val32);
             break;
         case epicsFloat64T:
-            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit %016Lx = %g\n",
+            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);

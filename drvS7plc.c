@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2010/11/17 10:45:02 $ */
-/* $Id: drvS7plc.c,v 1.14 2010/11/17 10:45:02 zimoch Exp $ */
+/* $Date: 2011/09/01 07:31:44 $ */
+/* $Id: drvS7plc.c,v 1.15 2011/09/01 07:31:44 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.14 $ */
+/* $Revision: 1.15 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,12 +14,18 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef __vxworks
+#if defined(vxWorks) || defined(__vxworks)
 #include <sockLib.h>
 #include <taskLib.h>
+#include <selectLib.h>
 #include <taskHookLib.h>
+#define in_addr_t unsigned long
 #else
 #include <fcntl.h>
+#endif
+
+#ifdef __rtems__
+#include <sys/select.h>
 #endif
 
 #include <drvSup.h>
@@ -44,20 +50,11 @@
 #include "compat3_13.h"
 #endif
 
-#ifdef __vxworks
-#define __BYTE_ORDER _BYTE_ORDER
-#define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#define __BIG_ENDIAN _BIG_ENDIAN
-#else
-#include <endian.h>
-#endif
-
-#define STACK_SIZE      20000  /* io thread stack size */
 #define CONNECT_TIMEOUT   5.0  /* connect timeout [s] */
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.14 2010/11/17 10:45:02 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.15 2011/09/01 07:31:44 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -70,6 +67,7 @@ STATIC void s7plcCloseConnection(s7plcStation* station);
 STATIC void s7plcSignal(void* event);
 s7plcStation* s7plcStationList = NULL;
 static epicsTimerQueueId timerqueue = NULL;
+static short bigEndianIoc;
 
 struct {
     long number;
@@ -148,13 +146,9 @@ STATIC long s7plcIoReport(int level)
             printf("    outBuffer at address %p (%d bytes)\n",
                 station->outBuffer,  station->outSize);
             printf("    swap bytes %s\n",
-                station->swapBytes ?
-#if (__BYTE_ORDER == __LITTLE_ENDIAN)
-                "ioc:intel <-> plc:motorola" : "no, both intel"
-#else
-                "ioc:motorola <-> plc:intel" : "no, both motorola"
-#endif
-            );
+                station->swapBytes
+                    ? ( bigEndianIoc ? "ioc:motorola <-> plc:intel" : "ioc:intel <-> plc:motorola" )
+                    : ( bigEndianIoc ? "no, both motorola" : "no, both intel" ) );
             printf("    receive timeout %g sec\n",
                 station->recvTimeout);
             printf("    send intervall  %g sec\n",
@@ -166,6 +160,9 @@ STATIC long s7plcIoReport(int level)
 
 STATIC long s7plcInit()
 {
+    union {short s; char c [sizeof(short)];} u;
+    u.s=1;
+    bigEndianIoc = u.c[0];
     if (!s7plcStationList) {
         errlogSevPrintf(errlogInfo,
             "s7plcInit: no stations configured\n");
@@ -175,7 +172,7 @@ STATIC long s7plcInit()
     epicsThreadCreate(
         "s7plcMain",
         epicsThreadPriorityMedium,
-        STACK_SIZE,
+        epicsThreadGetStackSize(epicsThreadStackBig),
         (EPICSTHREADFUNC)s7plcMain,
         NULL);
     return 0;
@@ -190,7 +187,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
 {
     s7plcStation* station;
     s7plcStation** pstation;
-    unsigned long ip;
+    in_addr_t ip;
     
     if (!name)
     {
@@ -225,8 +222,8 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station = callocMustSucceed(1,
         sizeof(s7plcStation) + inSize + outSize + strlen(name)+1 , "s7plcConfigure");
     station->next = NULL;
-    sprintf(station->serverIP, "%ld.%ld.%ld.%ld",
-        (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff);
+    sprintf(station->serverIP, "%d.%d.%d.%d",
+        (int)((ip>>24)&0xff), (int)((ip>>16)&0xff), (int)((ip>>8)&0xff), ((int)ip&0xff));
     station->serverPort = port;
     station->inSize = inSize;
     station->outSize = outSize;
@@ -234,13 +231,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station->outBuffer = (char*)(station+1)+inSize;
     station->name = (char*)(station+1)+inSize+outSize;
     strcpy(station->name, name);
-#if (__BYTE_ORDER == __LITTLE_ENDIAN)
-    station->swapBytes = bigEndian;
-#elif (__BYTE_ORDER == __BIG_ENDIAN)
-    station->swapBytes = !bigEndian;
-#else
-#error Strange byte order on this machine.
-#endif        
+    station->swapBytes = bigEndian ^ bigEndianIoc;
     station->connStatus = 0;
     station->socket = -1;
     station->mutex = epicsMutexMustCreate();
@@ -265,9 +256,6 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
 
     /* append station to list */
     *pstation = station;
-
-    /* increment IP address for next station */
-    ip++;
     pstation = &station->next;
 
     return 0;
@@ -531,7 +519,7 @@ void s7plcMain ()
                 station->sendThread = epicsThreadCreate(
                     threadname,
                     epicsThreadPriorityMedium,
-                    STACK_SIZE,
+                    epicsThreadGetStackSize(epicsThreadStackBig),
                     (EPICSTHREADFUNC)s7plcSendThread,
                     station);
                 if (!station->sendThread)
@@ -560,7 +548,7 @@ void s7plcMain ()
                 station->recvThread = epicsThreadCreate(
                     threadname,
                     epicsThreadPriorityMedium,
-                    STACK_SIZE,
+                    epicsThreadGetStackSize(epicsThreadStackBig),
                     (EPICSTHREADFUNC)s7plcReceiveThread,
                     station);
                 if (!station->recvThread)
@@ -760,7 +748,7 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
 {
     struct sockaddr_in    serverAddr;    /* server socket address */
     struct timeval    to;
-#ifndef __vxworks
+#if (!defined(vxWorks)) && (!defined(__vxworks))
     long opt;
 #endif
 
@@ -769,7 +757,7 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
         station->socket, station->serverIP, station->serverPort);
 
     /* build server socket address */
-    bzero((char *) &serverAddr, sizeof (serverAddr));
+    memset((char *) &serverAddr, 0, sizeof (serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(station->serverPort);
     serverAddr.sin_addr.s_addr = inet_addr(station->serverIP);
@@ -777,7 +765,7 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
     /* connect to server */
     to.tv_sec=(int)(CONNECT_TIMEOUT);
     to.tv_usec=(int)(CONNECT_TIMEOUT-to.tv_sec)*1000000;
-#ifdef __vxworks
+#if defined(vxWorks) || defined(__vxworks)
     if (connectWithTimeout(station->socket,
         (struct sockaddr *) &serverAddr, sizeof (serverAddr), &to) < 0)
     {
@@ -810,7 +798,7 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
         if (errno == EINPROGRESS)
         {
             /* start timeout */
-            long status;
+            int status;
             socklen_t lon = sizeof(status);
             fd_set fdset;
 
