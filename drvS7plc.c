@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/09/01 07:31:44 $ */
-/* $Id: drvS7plc.c,v 1.15 2011/09/01 07:31:44 zimoch Exp $ */
+/* $Date: 2011/09/02 07:29:04 $ */
+/* $Id: drvS7plc.c,v 1.16 2011/09/02 07:29:04 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.15 $ */
+/* $Revision: 1.16 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.15 2011/09/01 07:31:44 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.16 2011/09/02 07:29:04 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -160,9 +160,6 @@ STATIC long s7plcIoReport(int level)
 
 STATIC long s7plcInit()
 {
-    union {short s; char c [sizeof(short)];} u;
-    u.s=1;
-    bigEndianIoc = u.c[0];
     if (!s7plcStationList) {
         errlogSevPrintf(errlogInfo,
             "s7plcInit: no stations configured\n");
@@ -189,6 +186,9 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     s7plcStation** pstation;
     in_addr_t ip;
     
+    union {short s; char c [sizeof(short)];} u;
+    u.s=1;
+    bigEndianIoc = !u.c[0];
     if (!name)
     {
         errlogSevPrintf(errlogFatal,
