@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/09/01 07:31:44 $ */
-/* $Id: devS7plc.c,v 1.13 2011/09/01 07:31:44 zimoch Exp $ */
+/* $Date: 2011/09/23 12:48:25 $ */
+/* $Id: devS7plc.c,v 1.14 2011/09/23 12:48:25 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.13 $ */
+/* $Revision: 1.14 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -44,6 +44,7 @@
 /* R3.13 */
 #include "compat3_13.h"
 #endif
+#define isnan(x) ((x)!=(x))
 
 /* suppress compiler warning concerning long long with __extension__ */
 #if (!defined __GNUC__) || (__GNUC__ < 2) || (__GNUC__ == 2 && __GNUC_MINOR__ < 8)
@@ -73,7 +74,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.13 2011/09/01 07:31:44 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.14 2011/09/23 12:48:25 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1756,7 +1757,7 @@ STATIC long s7plcReadAi(aiRecord *record)
             /* emulate smoothing */
             record->val = record->val * record->smoo +
                 val64.f * (1.0 - record->smoo);
-        record->udf = FALSE;
+        record->udf = isnan(record->val);
         return 2;
     }
     return 0;
