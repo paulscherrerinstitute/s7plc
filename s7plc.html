@@ -6,10 +6,7 @@
 <meta name="author" content="Dirk Zimoch">
 <style type="text/css">
 <!--
-p { text-align:justify; margin-top:0; }
 .indent {text-indent:-4ex; margin-left:4ex; text-align:left;}
-h2 {margin-bottom:1ex; }
-h4 {margin-bottom:0; margin-top:1ex; }
 @media screen {
 pre,code {color:green; }
 }
@@ -23,6 +20,8 @@ a {color:black; text-decoration:none; }
 <h1>S7plc EPICS driver documentation</h1>
 <h2>Contents</h2>
 <ol>
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#theory">Theory of Operation</a></li>
 <li><a href="#config">Driver Configuration</a></li>
 <li><a href="#device">Device Support</a>
  <ol>
@@ -44,12 +43,15 @@ a {color:black; text-decoration:none; }
  </ol></li>
 <li><a href="#driver">Driver Functions</a></li>
 </ol>
-<h2>Intro</h2>
+<a name="intro"></a>
+<h2>1 Introduction</h2>
 <p>
 This driver is intended to connect a Siemens S7 PLC (programmable
-logic controller) via TCP/IP to an EPICS IOC. However, it can be used for
-any device sending and receiving blocks of process variables (PVs) in the
-same way. I highly recommend to connect to the PLC on a separate physical
+logic controller) via TCP/IP to an EPICS IOC, using the so called
+"send/receive" protocol.
+However, it can be used for any device sending and receiving blocks of
+process variables (PVs) in the same way.
+I highly recommend to connect to the PLC on a separate physical
 network using a second network interface to avoid connection problems.
 </p>
 <p>
@@ -59,7 +61,7 @@ current version has been completely rewritten for PPT (Puls-Plasmatechnik GmbH)
 to run on a R3.14.6 PC based system, but it can also run on R3.13 vxWorks
 system. Author of the current version is
 <a href="mailto:Dirk Zimoch <dirk.zimoch&#64;psi&#46;ch>">Dirk
-Zimoch&nbsp;(SLS) &lt;dirk.zimoch&#64;psi&#46;ch&gt;</a>.
+Zimoch&nbsp;&lt;dirk.zimoch&#64;psi&#46;ch&gt;</a>.
 </p>
 <p>
 In this document, it is assumed that the reader is familiar with EPICS, the
@@ -67,8 +69,73 @@ record concept and meanings of the fields of the standard records.
 Recommended documentation: EPICS Record Refecrence Manual.
 </p>
 
+<a name="theory"></a>
+<h2>2 Theory of Operation</h2>
+<p>
+The driver and the PLC periodically exchange data (process variables)
+over the network.
+For each direction (IOC to PLC and PLC to IOC), there is one fixed size
+data block that bundles all process variables for this direction.
+The process variables are identified by their bytes offset in the data
+block.
+The IOC programmer typically connects one input record to each process
+variable sent from the PLC to the IOC and one output record for each
+process variable sent from the IOC to the PLC.
+This requires that the programmer of the PLC and the programmer of the IOC
+agree on the data block sizes and layouts.
+The layout is not negotiated between IOC and PLC in any automated way.
+</p>
+<p>
+When the IOC starts, the driver tries to connect to the PLC
+which must run a TCP server.
+If connection cannot be established (e.g. because the PLC is off)
+the driver periodically retries to set up the connection.
+Once connected, the driver waits for data blocks sent by the PLC.
+The PLC must be set up to send its data periodically.
+If the driver does not receive any data within a configurable timeout
+(which should be 2 to 10 times the send period of the PLC) or the
+data block does not have the correct size, the driver considers the
+communication broken and closes the connection.
+After a short time it tries to reconnect.
+<p>
+Upon reciving the data block, the driver copies the process variables
+from this block into input records and then triggers processing of the
+records.
+To allow this triggering, the input records should use "I/O Intr" scanning
+(or alternatively be processed by another record that uses "I/O Intr"
+and is conencted to the same PLC).
+All input records connected to the same PLC are triggered at the same time
+after all input values have been updated.
+The order of processing is undefined.
+</p>
+<p>
+On the other hand, the driver periodically checks if any of the output
+records connected to this PLC has processed since the last cycle.
+If and only if this is the case, a data block containing all output
+variables is sent to the PLC.
+Sending output only starts after the "PINI" run at IOC startup.
+This allows to initialize all output records before any data is sent
+to the IOC.
+Thus all output records should have the "PINI" field set to "YES" (or
+alternatively be processed by another record that uses "PINI").
+Any output that has not been processed before the data block is sent
+to the PLC transfers only 0 bytes (usually meaning integer 0, floating
+point 0.0, or empty string, depending on the data type).
+<p>
+Data blocks are always transfered completely.
+That means all process variables in that block are transfered, even
+if they have not changed since the last cycle.
+There is no way to write or read only a sub-set of process variables.
+In between two cycles, any number of process variables may have changed.
+These changes are only transfered to the other communication partner
+in the next cycle.
+Thus, there is always a delay until the values update on the other side
+of the connection.
+Also if values change too quickly, faster than the transfer cycle,
+intermediate values are lost.
+</p>
 <a name="config"></a>
-<h2>1 Driver Configuration</h2>
+<h2>3 Driver Configuration</h2>
 <p>
 In the IOC startup script, the s7plc driver needs to be configured:
 </p>
@@ -98,7 +165,7 @@ of the byte order of the IOC.
 If the IOC does not receive new data from the PLC for
 <code><i>recvTimeout</i></code> milliseconds, it closes the connection and
 tries to reopen it after a few seconds. <code><i>recvTimeout</i></code>
-should be 2 to 5 times the send intervall of the PLC.
+should be 2 to 10 times the send intervall of the PLC.
 </p>
 <p>
 The IOC checks for data to send every <code><i>sendIntervall</i></code>
@@ -145,7 +212,7 @@ In the iocsh use
 </p>
 
 <a name="device"></a>
-<h2>2 Device Support</h2>
+<h2>4 Device Support</h2>
 <p>
 The driver supports the standard record types <a href="#ai">ai</a>,
 <a href="#ao">ao</a>, <a href="#bi">bi</a>, <a href="#bo">bo</a>,
@@ -297,7 +364,7 @@ initialisation. Thus, auto save and restore can be used in combination with
 
 
 <a name="stat"></a>
-<h3>2.1 Connection Status</h3>
+<h3>4.1 Connection Status</h3>
 <pre>
  record (bi, "$(RECORDNAME)") {
   field (DTYP, "S7plc stat")
@@ -311,7 +378,7 @@ Disconnect does not raise an alarm.
 </p>
 
 <a name="ai"></a>
-<h3>2.2 Analog Input</h3>
+<h3>4.2 Analog Input</h3>
 <pre>
  record (ai, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -365,7 +432,7 @@ by the record support during conversion.
 </p>
 
 <a name="ao"></a>
-<h3>2.3 Analog Output</h3>
+<h3>4.3 Analog Output</h3>
 <pre>
  record (ao, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -422,7 +489,7 @@ record support during conversion.
 </p>
 
 <a name="bi"></a>
-<h3>2.4 Binary Input</h3>
+<h3>4.4 Binary Input</h3>
 <pre>
  record(bi, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -454,7 +521,7 @@ valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="bo"></a>
-<h3>2.5 Binary Output</h3>
+<h3>4.5 Binary Output</h3>
 <pre>
  record(bo, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -488,7 +555,7 @@ valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbi"></a>
-<h3>2.6 Multibit Binary Input</h3>
+<h3>4.6 Multibit Binary Input</h3>
 <pre>
  record(mbbi, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -562,7 +629,7 @@ valid for mbbi records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbo"></a>
-<h3>2.7 Multibit Binary Output</h3>
+<h3>4.7 Multibit Binary Output</h3>
 <pre>
  record(mbbo, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -641,7 +708,7 @@ valid for mbbo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbiDirect"></a>
-<h3>2.8 Multibit Binary Input Direct</h3>
+<h3>4.8 Multibit Binary Input Direct</h3>
 <pre>
  record(mbbiDirect, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -671,7 +738,7 @@ valid for mbbiDirect records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbboDirect"></a>
-<h3>2.9 Multibit Binary Output Direct</h3>
+<h3>4.9 Multibit Binary Output Direct</h3>
 <pre>
  record(mbboDirect, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -706,7 +773,7 @@ valid for mbboDirect records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="longin"></a>
-<h3>2.10 Long Input</h3>
+<h3>4.10 Long Input</h3>
 <pre>
  record(longin, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -728,7 +795,7 @@ valid for longin records.
 </p>
 
 <a name="longout"></a>
-<h3>2.11 Long Output</h3>
+<h3>4.11 Long Output</h3>
 <pre>
  record(longout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -749,7 +816,7 @@ valid for longout records.
 </p>
 
 <a name="stringin"></a>
-<h3>2.12 String Input</h3>
+<h3>4.12 String Input</h3>
 <pre>
  record(stringin, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -768,7 +835,7 @@ terminated. Thus, the effective string length is maximal
 </p>
 
 <a name="stringout"></a>
-<h3>2.13 String Output</h3>
+<h3>4.13 String Output</h3>
 <pre>
  record(stringout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -789,7 +856,7 @@ null terminated
 </p>
 
 <a name="waveform"></a>
-<h3>2.14 Waveform Input</h3>
+<h3>4.14 Waveform Input</h3>
 <pre>
  record(waveform, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -863,7 +930,7 @@ If you want to have the unconverted BCD bytes, do not use
 </p>
 
 <a name="calcout"></a>
-<h3>2.15 Calculation Output</h3>
+<h3>4.15 Calculation Output</h3>
 <pre>
  record(calcout, "$(NAME)") {
   field (DTYP, "S7plc")
@@ -896,7 +963,7 @@ To use this device support with calcout records, you need EPICS R3.14.
 </p>
 
 <a name="driver"></a>
-<h2>3 Driver Functions</h2>
+<h2>5 Driver Functions</h2>
 <p>
 Device support for other record types can be written with calls to the
 following driver functions:
@@ -986,6 +1053,6 @@ For strings, use array functions with <code>dlen=1</code> and
 <code>nelem=buffersize</code>.
 </p>
 <hr>
-<small>Dirk Zimoch, March 2005</small>
+<small>Dirk Zimoch, March 2005 - February 2012</small>
 </body>
 </html>
