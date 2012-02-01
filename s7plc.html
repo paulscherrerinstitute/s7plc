@@ -78,6 +78,14 @@ For each direction (IOC to PLC and PLC to IOC), there is one fixed size
 data block that bundles all process variables for this direction.
 The process variables are identified by their bytes offset in the data
 block.
+</p>
+<p>
+Process variables can be 8, 16, or 32 bit wide signed or unsigned integers
+or bit fields, single or double precision floating point values,
+or arrays of these, as well as strings of single byte characters.
+Both byte orders, big endian and little endian, are supported.
+</p>
+<p>
 The IOC programmer typically connects one input record to each process
 variable sent from the PLC to the IOC and one output record for each
 process variable sent from the IOC to the PLC.
@@ -379,6 +387,7 @@ Disconnect does not raise an alarm.
 
 <a name="ai"></a>
 <h3>4.2 Analog Input</h3>
+With conversion from integer data type:
 <pre>
  record (ai, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -388,7 +397,9 @@ Disconnect does not raise an alarm.
   field (EGUL, "$(MINVAL)")
   field (EGUF, "$(MAXVAL)")
  }
-
+</pre>
+Using floating point data type:
+<pre>
  record (ai, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
   field (INP,  "@$(PLCNAME)/$(OFFSET) T=$(T)")
@@ -433,6 +444,7 @@ by the record support during conversion.
 
 <a name="ao"></a>
 <h3>4.3 Analog Output</h3>
+With conversion to integer data type:
 <pre>
  record (ao, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
@@ -442,7 +454,9 @@ by the record support during conversion.
   field (EGUL, "$(MINVAL)")
   field (EGUF, "$(MAXVAL)")
  }
-
+</pre>
+Using floating point data type:
+<pre>
  record (ao, "$(RECORDNAME)") {
   field (DTYP, "S7plc")
   field (OUT,  "@$(PLCNAME)/$(OFFSET) T=$(T)")
