@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/09/23 12:48:25 $ */
-/* $Id: devS7plc.c,v 1.14 2011/09/23 12:48:25 zimoch Exp $ */
+/* $Date: 2012/10/19 07:32:53 $ */
+/* $Id: devS7plc.c,v 1.15 2012/10/19 07:32:53 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.14 $ */
+/* $Revision: 1.15 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -74,7 +74,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.14 2011/09/23 12:48:25 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.15 2012/10/19 07:32:53 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1416,7 +1416,7 @@ STATIC long s7plcInitRecordLongin(longinRecord *record)
     return 0;
 }
 
-STATIC long s7plcReadLongin(longinRecord *record)
+STATIC long s7plcRea1dLongin(longinRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
@@ -1462,7 +1462,7 @@ STATIC long s7plcReadLongin(longinRecord *record)
             status = s7plcRead(priv->station, priv->offs,
                 2, &uval16);
             s7plcDebugLog(3, "longin %s: read 16bit %04x\n",
-                record->name, sval16);
+                record->name, uval16);
             record->val = uval16;
             break;
         case epicsInt32T:
