@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2011/09/02 07:29:04 $ */
-/* $Id: drvS7plc.c,v 1.16 2011/09/02 07:29:04 zimoch Exp $ */
+/* $Date: 2013/01/16 10:17:33 $ */
+/* $Id: drvS7plc.c,v 1.17 2013/01/16 10:17:33 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.16 $ */
+/* $Revision: 1.17 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.16 2011/09/02 07:29:04 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.17 2013/01/16 10:17:33 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -651,9 +651,10 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
                 if (received <= 0)
                 {
                     s7plcDebugLog(0,
-                        "s7plcReceiveThread %s: recv(%d, ..., %d, 0) failed\n",
+                        "s7plcReceiveThread %s: recv(%d, ..., %d, 0) failed: %s\n",
                         station->name,
-                        station->socket, station->inSize-input);
+                        station->socket, station->inSize-input,
+                        strerror(errno));
                     s7plcCloseConnection(station);
                     epicsMutexUnlock(station->io);
                     break;
