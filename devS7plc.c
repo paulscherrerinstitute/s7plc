@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2012/10/19 07:32:53 $ */
-/* $Id: devS7plc.c,v 1.15 2012/10/19 07:32:53 zimoch Exp $ */
+/* $Date: 2013/01/16 10:17:14 $ */
+/* $Id: devS7plc.c,v 1.16 2013/01/16 10:17:14 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.15 $ */
+/* $Revision: 1.16 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -74,7 +74,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.15 2012/10/19 07:32:53 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.16 2013/01/16 10:17:14 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -1416,7 +1416,7 @@ STATIC long s7plcInitRecordLongin(longinRecord *record)
     return 0;
 }
 
-STATIC long s7plcRea1dLongin(longinRecord *record)
+STATIC long s7plcReadLongin(longinRecord *record)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
