@@ -35,12 +35,13 @@ s7plcApp_SRCS += appMain.cc
 s7plcApp_LIBS += s7plc
 s7plcApp_LIBS += $(EPICS_BASE_IOC_LIBS)
 s7plcApp_DBD += base.dbd
-s7plcApp_DBD += s7plcBase.dbd
-s7plcApp_DBD += s7plcCalcout.dbd
-s7plcApp_DBD += s7plcReg.dbd
+s7plcApp_DBD += s7plc.dbd
 DBD += s7plcApp.dbd
 
+
 include $(TOP)/configure/RULES
+
+s7plcApp.dbd.d: s7plc.dbd
 
 s7plc.dbd: s7plcBase.dbd s7plcCalcout.dbd s7plcReg.dbd
 	cat $^ > $@
