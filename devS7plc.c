@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/01/16 10:17:14 $ */
-/* $Id: devS7plc.c,v 1.16 2013/01/16 10:17:14 zimoch Exp $ */
+/* $Date: 2013/06/13 15:30:32 $ */
+/* $Id: devS7plc.c,v 1.17 2013/06/13 15:30:32 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.16 $ */
+/* $Revision: 1.17 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -33,6 +33,8 @@
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
 #include <waveformRecord.h>
+#include <aaiRecord.h>
+#include <aaoRecord.h>
 
 #if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
 /* R3.14 */
@@ -74,7 +76,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.16 2013/01/16 10:17:14 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.17 2013/06/13 15:30:32 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -348,6 +350,40 @@ struct devsup s7plcWaveform =
 };
 
 epicsExportAddress(dset, s7plcWaveform);
+
+/* aai **************************************************************/
+
+STATIC long s7plcInitRecordAai(aaiRecord *);
+STATIC long s7plcReadAai(aaiRecord *);
+
+struct devsup s7plcAai =
+{
+    5,
+    NULL,
+    NULL,
+    s7plcInitRecordAai,
+    s7plcGetInIntInfo,
+    s7plcReadAai
+};
+
+epicsExportAddress(dset, s7plcAai);
+
+/* aao **************************************************************/
+
+STATIC long s7plcInitRecordAao(aaoRecord *);
+STATIC long s7plcWriteAao(aaoRecord *);
+
+struct devsup s7plcAao =
+{
+    5,
+    NULL,
+    NULL,
+    s7plcInitRecordAao,
+    s7plcGetInIntInfo,
+    s7plcWriteAao
+};
+
+epicsExportAddress(dset, s7plcAao);
 
 /* calcout **********************************************************/
 #if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
@@ -2103,19 +2139,19 @@ STATIC long s7plcWriteStringout(stringoutRecord *record)
 
 /* waveform *********************************************************/
 
-STATIC long s7plcInitRecordWaveform(waveformRecord *record)
+static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl, int nelm)
 {
     S7memPrivate_t *priv;
     int status;
     
-    if (record->inp.type != INST_IO) {
+    if (iolink->type != INST_IO) {
         recGblRecordError(S_db_badField, record,
-            "s7plcInitRecordWaveform: illegal INP field");
+            "s7plcInitRecordArray: illegal INP field");
         return S_db_badField;
     }
     priv = (S7memPrivate_t *)callocMustSucceed(1,
-        sizeof(S7memPrivate_t), "s7plcInitRecordWaveform");
-    switch (record->ftvl)
+        sizeof(S7memPrivate_t), "s7plcInitRecordArray");
+    switch (ftvl)
     {
         case DBF_CHAR:
             priv->dtype = epicsInt8T;
@@ -2151,79 +2187,77 @@ STATIC long s7plcInitRecordWaveform(waveformRecord *record)
             break;
         default:
             errlogSevPrintf(errlogFatal,
-                "s7plcInitRecordWaveform %s: illegal FTVL value\n",
+                "s7plcInitRecordArray %s: illegal FTVL value\n",
                 record->name);
             return S_db_badField;
     }
     status = s7plcIoParse(record->name,
-        record->inp.value.instio.string, priv);
+        iolink->value.instio.string, priv);
     if (status)
     {
         recGblRecordError(S_db_badField, record,
-            "s7plcInitRecordWaveform: bad INP field");
+            "s7plcInitRecordArray: bad link");
         return S_db_badField;
     }
     assert(priv->station);
-    record->nord = record->nelm;
     switch (priv->dtype)
     {
         case S7MEM_TIME:
-            if ((record->ftvl != DBF_CHAR) && (record->ftvl != DBF_UCHAR))
+            if ((ftvl != DBF_CHAR) && (ftvl != DBF_UCHAR))
             {
                 status = S_db_badField;
             }
             break;
         case epicsFloat64T:
-            if (record->ftvl != DBF_DOUBLE)
+            if (ftvl != DBF_DOUBLE)
             {
                 status = S_db_badField;
             }
             break;
         case epicsFloat32T:
-            if (record->ftvl != DBF_FLOAT)
+            if (ftvl != DBF_FLOAT)
             {
                 status = S_db_badField;
             }
             break;
         case epicsStringT:    
-            if ((record->ftvl == DBF_CHAR) || (record->ftvl == DBF_UCHAR))
+            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
-                if (!priv->dlen) priv->dlen = record->nelm;
-                if (priv->dlen > record->nelm) priv->dlen = record->nelm;
+                if (priv->dlen == 0 || priv->dlen > nelm) priv->dlen = nelm;
                 break;
             }
             break;
         case epicsInt8T:
         case epicsUInt8T:
-            if ((record->ftvl != DBF_CHAR) && (record->ftvl == DBF_UCHAR))
+            if ((ftvl != DBF_CHAR) && (ftvl == DBF_UCHAR))
             {
                 status = S_db_badField;
             }
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            if ((record->ftvl != DBF_SHORT) && (record->ftvl == DBF_USHORT))
+            if ((ftvl != DBF_SHORT) && (ftvl == DBF_USHORT))
             {
                 status = S_db_badField;
             }
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            if ((record->ftvl != DBF_LONG) && (record->ftvl == DBF_ULONG))
+            if ((ftvl != DBF_LONG) && (ftvl == DBF_ULONG))
             {
                 status = S_db_badField;
             }
             break;
         default:
             errlogSevPrintf(errlogFatal,
-                "s7plcInitRecordWaveform %s: illegal data type\n",
+                "s7plcInitRecordArray %s: illegal data type\n",
                 record->name);
             return S_db_badField;
     }
     if (status)
     {
         errlogSevPrintf(errlogFatal,
-            "s7plcInitRecordWaveform %s: "
+            "s7plcInitRecordArray %s: "
             "wrong FTVL field for this data type",
             record->name);
         return status;
@@ -2237,21 +2271,23 @@ STATIC long s7plcInitRecordWaveform(waveformRecord *record)
  */
 static unsigned char bcd2d(unsigned char bcd)
 {
-    unsigned char tmp;
-
-    tmp = bcd & 0xF;
-    tmp += ((bcd >> 4) & 0xF)*10;
-
-    return tmp;
+    return (bcd & 0xF) + ((bcd >> 4) & 0xF)*10;
 }
 
-STATIC long s7plcReadWaveform(waveformRecord *record)
+/*
+ * d2bcd routine to convert byte from decimal to BCD format.
+ */
+static unsigned char d2bcd(unsigned char dec)
+{
+    return (dec/10) << 4 | dec%10;
+    
+}
+
+static long s7plcReadRecordArray(dbCommon *record, int nelm, void* bptr)
 {
     int status;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
-    char Time[8];
-    int i;
-    char *p;
+    int dlen;
 
     if (!priv)
     {
@@ -2261,59 +2297,127 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
         return -1;
     }
     assert(priv->station);
-    switch (priv->dtype)
+    if (priv->dtype == epicsStringT)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsStringT:
-            status = s7plcReadArray(priv->station, priv->offs,
-                1, record->nelm, record->bptr);
-            s7plcDebugLog(3,
-                "waveform %s: read %ld values of 8bit to %p\n",
-                record->name, (long) record->nelm, record->bptr);
-            break;
-        case epicsInt16T:
-        case epicsUInt16T:
-            status = s7plcReadArray(priv->station, priv->offs,
-                2, record->nelm, record->bptr);
-            s7plcDebugLog(3,
-                "waveform %s: read %ld values of 16bit to %p\n",
-                record->name, (long) record->nelm, record->bptr);
-            break;
-        case epicsInt32T:
-        case epicsUInt32T:
-        case epicsFloat32T:
-            status = s7plcReadArray(priv->station, priv->offs,
-                4, record->nelm, record->bptr);
-            s7plcDebugLog(3,
-                "waveform %s: read %ld values of 32bit to %p\n",
-                record->name, (long) record->nelm, record->bptr);
-            break;
-        case epicsFloat64T:
-            status = s7plcReadArray(priv->station, priv->offs,
-                8, record->nelm, record->bptr);
-            s7plcDebugLog(3,
-                "waveform %s: read %ld values of 64bit to %p\n",
-                record->name, (long) record->nelm, record->bptr);
-            break;
-        case S7MEM_TIME:
-            status = s7plcReadArray(priv->station, priv->offs,
-                1, 8, Time);
-            s7plcDebugLog(3,
-                "waveform %s: read 8 values of 8bit to %p\n",
-                record->name, record->bptr);
-            if (status) break;
-            for (i = 0, p = record->bptr; i < record->nelm; i++)
-                *p++ = (i == 7)? Time[i] : bcd2d(Time[i]);
-            break;
-        default:
-            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
-            errlogSevPrintf(errlogFatal,
-                "%s: unexpected data type requested\n",
-                record->name);
-            return -1;
+        dlen = 1;
+        nelm = priv->dlen;
     }
+    else
+    {
+        dlen = priv->dlen;
+    }
+    status = s7plcReadArray(priv->station, priv->offs,
+        dlen, nelm, bptr);
+    s7plcDebugLog(3,
+        "%s: read %d values of %d bit to %p\n",
+        record->name, nelm, dlen, bptr);
+    if (status) return status;
+    if (priv->dtype == S7MEM_TIME)
+    {
+        int i;
+        unsigned char* p = bptr;
+        for (i = 0; i < nelm; i++)
+            p[i] = bcd2d(p[i]);
+    }
+    return 0;
+}
+
+STATIC long s7plcInitRecordWaveform(waveformRecord *record)
+{
     record->nord = record->nelm;
+    return s7plcInitRecordArray((dbCommon*) record, &record->inp, record->ftvl, record->nelm);
+}
+
+STATIC long s7plcReadWaveform(waveformRecord *record)
+{
+    return s7plcReadRecordArray((dbCommon *)record, record->nelm, record->bptr);
+}
+
+/* aai *********************************************************/
+
+STATIC long s7plcInitRecordAai(aaiRecord *record)
+{
+    int status;
+    record->nord = record->nelm;
+    status = s7plcInitRecordArray((dbCommon*) record, &record->inp, record->ftvl, record->nelm);
+    /* aai does not allocate buffer memory */
+    if (status == 0)
+    {
+        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;   
+        record->bptr = calloc(record->nelm, priv->dlen);
+    }
+    return status;
+}
+
+STATIC long s7plcReadAai(aaiRecord *record)
+{
+    return s7plcReadRecordArray((dbCommon *)record, record->nelm, record->bptr);
+}
+
+/* aao *********************************************************/
+
+STATIC long s7plcInitRecordAao(aaoRecord *record)
+{
+    int status;
+    record->nord = record->nelm;
+    status = s7plcInitRecordArray((dbCommon*) record, &record->out, record->ftvl, record->nelm);
+    /* aai does not allocate buffer memory */
+    if (status == 0)
+    {
+        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;   
+        record->bptr = calloc(record->nelm, priv->dlen);
+    }
+    return status;
+}
+
+STATIC long s7plcWriteAao(aaoRecord *record)
+{
+    int status = 0;
+    S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
+    int dlen;
+    int nelm;
+
+    if (!priv)
+    {
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
+        errlogSevPrintf(errlogFatal,
+            "%s: not initialized\n", record->name);
+        return -1;
+    }
+    assert(priv->station);
+    if (priv->dtype == S7MEM_TIME)
+    {
+        int i;
+        unsigned char* p = record->bptr;
+        unsigned char bcd;
+        for (i=0; i < record->nelm; i++)
+        {
+            bcd = d2bcd(p[i]);
+            status = s7plcWrite(priv->station, priv->offs,
+                priv->dlen, &bcd);
+            if (status != 0) break;
+        }
+    }
+    else
+    {
+        if (priv->dtype == epicsStringT)
+        {
+            dlen = 1;
+            nelm = priv->dlen;
+        }
+        else
+        {
+            dlen = priv->dlen;
+            nelm = record->nelm;
+        }
+        s7plcDebugLog(3,
+            "%s: write %d values of %d bit to %p\n",
+            record->name, nelm, dlen, record->bptr);
+
+        status = s7plcWriteArray(priv->station, priv->offs,
+            dlen, record->nelm, record->bptr);
+    }
+
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -2322,7 +2426,7 @@ STATIC long s7plcReadWaveform(waveformRecord *record)
     if (status)
     {
         errlogSevPrintf(errlogFatal,
-            "%s: read error\n", record->name);
+            "%s: write error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
     return status;
