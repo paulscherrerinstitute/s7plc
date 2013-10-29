@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/10/29 16:20:27 $ */
-/* $Id: drvS7plc.c,v 1.19 2013/10/29 16:20:27 zimoch Exp $ */
+/* $Date: 2013/10/29 16:21:07 $ */
+/* $Id: drvS7plc.c,v 1.20 2013/10/29 16:21:07 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.19 $ */
+/* $Revision: 1.20 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.19 2013/10/29 16:20:27 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.20 2013/10/29 16:21:07 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -879,7 +879,7 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
         }
         station->socket = -1;
     }
-    epicsMutexUnock(station->mutex);
+    epicsMutexUnlock(station->mutex);
     /* notify all "I/O Intr" input records */
     scanIoRequest(station->inScanPvt);
 }
