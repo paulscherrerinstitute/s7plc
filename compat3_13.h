@@ -153,4 +153,12 @@ typedef struct epicsTimerForC {WDOG_ID wd; FUNCPTR cb; int p;} *epicsTimerId;
 #define epicsEventTryWait(e) semTake((e),NO_WAIT)
 #define epicsEventDestroy semDelete
 
+/* osiSock */
+#include <hostLib.h>
+#include <inetLib.h>
+#define hostToIPAddr(name,psin_addr) \
+    (((psin_addr)->s_addr = hostGetByName(name)) != -1 ? 0 : \
+     ((psin_addr)->s_addr = inet_addr(name)) != -1 ? 0 : -1)
+#define ipAddrToDottedIP(psockaddr_in,buf,size) \
+    do { if ((size)>=INET_ADDR_LEN) inet_ntoa_b(((psockaddr_in)->sin_addr),buf); } while (0)
 #endif

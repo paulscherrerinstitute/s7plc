@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/01/16 10:17:33 $ */
-/* $Id: drvS7plc.c,v 1.17 2013/01/16 10:17:33 zimoch Exp $ */
+/* $Date: 2013/10/29 16:19:24 $ */
+/* $Id: drvS7plc.c,v 1.18 2013/10/29 16:19:24 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.17 $ */
+/* $Revision: 1.18 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,16 +10,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
 #if defined(vxWorks) || defined(__vxworks)
 #include <sockLib.h>
-#include <taskLib.h>
-#include <selectLib.h>
-#include <taskHookLib.h>
 #define in_addr_t unsigned long
+#define socklen_t int
 #else
 #include <fcntl.h>
 #endif
@@ -37,6 +33,7 @@
 
 #if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
 /* R3.14 */
+#include <osiSock.h>
 #include <dbAccess.h>
 #include <iocsh.h>
 #include <cantProceed.h>
@@ -54,7 +51,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.17 2013/01/16 10:17:33 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.18 2013/10/29 16:19:24 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -86,7 +83,7 @@ epicsExportAddress(int, s7plcDebug);
 struct s7plcStation {
     struct s7plcStation* next;
     char* name;
-    char serverIP[20];
+    char* serverIP;
     int serverPort;
     int inSize;
     int outSize;
@@ -121,6 +118,7 @@ void s7plcDebugLog(int level, const char *fmt, ...)
 STATIC long s7plcIoReport(int level)
 {
     s7plcStation *station;
+    struct sockaddr_in addr;
 
     printf("%s\n", cvsid);
     if (level == 1)
@@ -132,14 +130,18 @@ STATIC long s7plcIoReport(int level)
             printf("  Station %s ", station->name);
             if (station->connStatus)
             {
-                printf("connected via file descriptor %d to\n",
-                    station->socket);
+                char ipstr[20];
+                socklen_t len = sizeof(addr);
+                getpeername(station->socket, (struct sockaddr*)&addr, &len);
+                ipAddrToDottedIP(&addr, ipstr, sizeof(ipstr));
+                printf("connected via file descriptor %d to %s \n",
+                    station->socket, ipstr);
             }
             else
             {
                 printf("disconnected from\n");
             }
-            printf("  plc with address %s on port %d\n",
+            printf(" %s on port %d\n",
                 station->serverIP, station->serverPort);
             printf("    inBuffer  at address %p (%d bytes)\n",
                 station->inBuffer,  station->inSize);
@@ -184,7 +186,6 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
 {
     s7plcStation* station;
     s7plcStation** pstation;
-    in_addr_t ip;
     
     union {short s; char c [sizeof(short)];} u;
     u.s=1;
@@ -207,23 +208,13 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
             "s7plcConfigure: missing IP port\n");
         return -1;
     }
-    ip = inet_addr(IPaddr);
-    if (ip == INADDR_NONE)
-    {
-        errlogSevPrintf(errlogFatal,
-            "s7plcConfigure: invalid IP address %s\n", IPaddr);
-        return -1;
-    }
-    ip = ntohl(ip);
         
     /* find last station in list */
     for (pstation = &s7plcStationList; *pstation; pstation = &(*pstation)->next);
     
     station = callocMustSucceed(1,
-        sizeof(s7plcStation) + inSize + outSize + strlen(name)+1 , "s7plcConfigure");
+        sizeof(s7plcStation) + inSize + outSize + strlen(name)+1 + strlen(IPaddr)+1, "s7plcConfigure");
     station->next = NULL;
-    sprintf(station->serverIP, "%d.%d.%d.%d",
-        (int)((ip>>24)&0xff), (int)((ip>>16)&0xff), (int)((ip>>8)&0xff), ((int)ip&0xff));
     station->serverPort = port;
     station->inSize = inSize;
     station->outSize = outSize;
@@ -231,6 +222,8 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station->outBuffer = (char*)(station+1)+inSize;
     station->name = (char*)(station+1)+inSize+outSize;
     strcpy(station->name, name);
+    station->serverIP = (char*)(station+1)+inSize+outSize+strlen(name)+1;
+    strcpy(station->serverIP, IPaddr);
     station->swapBytes = bigEndian ^ bigEndianIoc;
     station->connStatus = 0;
     station->socket = -1;
@@ -761,7 +754,13 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
     memset((char *) &serverAddr, 0, sizeof (serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(station->serverPort);
-    serverAddr.sin_addr.s_addr = inet_addr(station->serverIP);
+    if (hostToIPAddr(station->serverIP, &serverAddr.sin_addr) < 0)
+    {
+        s7plcDebugLog(0,
+            "s7plcEstablishConnection %s: hostToIPAddr(%s) failed: %s\n",
+            station->name, station->serverIP, strerror(errno));
+        return -1;
+    }
 
     /* connect to server */
     to.tv_sec=(int)(CONNECT_TIMEOUT);
