@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/10/29 16:19:24 $ */
-/* $Id: drvS7plc.c,v 1.18 2013/10/29 16:19:24 zimoch Exp $ */
+/* $Date: 2013/10/29 16:20:27 $ */
+/* $Id: drvS7plc.c,v 1.19 2013/10/29 16:20:27 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.18 $ */
+/* $Revision: 1.19 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.18 2013/10/29 16:19:24 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.19 2013/10/29 16:20:27 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -90,7 +90,6 @@ struct s7plcStation {
     char* inBuffer;
     char* outBuffer;
     int swapBytes;
-    int connStatus;
     volatile int socket;
     epicsMutexId mutex;
     epicsMutexId io;
@@ -128,7 +127,7 @@ STATIC long s7plcIoReport(int level)
             station=station->next)
         {
             printf("  Station %s ", station->name);
-            if (station->connStatus)
+            if (station->socket != -1)
             {
                 char ipstr[20];
                 socklen_t len = sizeof(addr);
@@ -225,7 +224,6 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station->serverIP = (char*)(station+1)+inSize+outSize+strlen(name)+1;
     strcpy(station->serverIP, IPaddr);
     station->swapBytes = bigEndian ^ bigEndianIoc;
-    station->connStatus = 0;
     station->socket = -1;
     station->mutex = epicsMutexMustCreate();
     station->io = epicsMutexMustCreate();
@@ -328,7 +326,6 @@ int s7plcReadArray(
 {
     unsigned int elem, i;
     unsigned char byte;
-    epicsUInt16 connStatus;
 
     if (offset+dlen > station->inSize)
     {
@@ -348,7 +345,6 @@ int s7plcReadArray(
         "s7plcReadArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
         station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
-    connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
     {
         s7plcDebugLog(5, "data in:");
@@ -364,7 +360,7 @@ int s7plcReadArray(
         s7plcDebugLog(5, "\n");
     }    
     epicsMutexUnlock(station->mutex);
-    if (!connStatus) return S_drv_noConn;
+    if (station->socket == -1) return S_drv_noConn;
     return S_drv_OK;
 }
 
@@ -379,7 +375,6 @@ int s7plcWriteMaskedArray(
 {
     unsigned int elem, i;
     unsigned char byte;
-    epicsUInt16 connStatus;
 
     if (offset+dlen > station->outSize)
     {
@@ -399,7 +394,6 @@ int s7plcWriteMaskedArray(
         "s7plcWriteMaskedArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
         station, offset, dlen, nelem);
     epicsMutexMustLock(station->mutex);
-    connStatus = station->connStatus;
     for (elem = 0; elem < nelem; elem++)
     {
         s7plcDebugLog(5, "data out:");
@@ -444,7 +438,7 @@ int s7plcWriteMaskedArray(
         station->outputChanged=1;
     }    
     epicsMutexUnlock(station->mutex);
-    if (!connStatus) return S_drv_noConn;
+    if (station->socket == -1) return S_drv_noConn;
     return S_drv_OK;
 }
 
@@ -684,7 +678,6 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
         {
             epicsMutexMustLock(station->mutex);
             memcpy(station->inBuffer, recvBuf, station->inSize);
-            station->connStatus = 1;
             epicsMutexUnlock(station->mutex);
             /* notify all "I/O Intr" input records */
             s7plcDebugLog(3,
@@ -867,7 +860,7 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
 
 STATIC void s7plcCloseConnection(s7plcStation* station)
 {
-    station->connStatus = 0;
+    epicsMutexMustLock(station->mutex);
     if (station->socket>0)
     {
         if (shutdown(station->socket, 2) < 0)
@@ -886,6 +879,7 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
         }
         station->socket = -1;
     }
+    epicsMutexUnock(station->mutex);
     /* notify all "I/O Intr" input records */
     scanIoRequest(station->inScanPvt);
 }
