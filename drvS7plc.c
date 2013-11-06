@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/10/29 16:21:07 $ */
-/* $Id: drvS7plc.c,v 1.20 2013/10/29 16:21:07 zimoch Exp $ */
+/* $Date: 2013/11/06 08:55:27 $ */
+/* $Id: drvS7plc.c,v 1.21 2013/11/06 08:55:27 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.20 $ */
+/* $Revision: 1.21 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 
 #if defined(vxWorks) || defined(__vxworks)
+#include <inetLib.h>
 #include <sockLib.h>
 #define in_addr_t unsigned long
 #define socklen_t int
@@ -51,7 +52,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.20 2013/10/29 16:21:07 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.21 2013/11/06 08:55:27 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -117,7 +118,6 @@ void s7plcDebugLog(int level, const char *fmt, ...)
 STATIC long s7plcIoReport(int level)
 {
     s7plcStation *station;
-    struct sockaddr_in addr;
 
     printf("%s\n", cvsid);
     if (level == 1)
@@ -129,16 +129,12 @@ STATIC long s7plcIoReport(int level)
             printf("  Station %s ", station->name);
             if (station->socket != -1)
             {
-                char ipstr[20];
-                socklen_t len = sizeof(addr);
-                getpeername(station->socket, (struct sockaddr*)&addr, &len);
-                ipAddrToDottedIP(&addr, ipstr, sizeof(ipstr));
-                printf("connected via file descriptor %d to %s \n",
-                    station->socket, ipstr);
+                printf("connected via fd %d to",
+                    station->socket);
             }
             else
             {
-                printf("disconnected from\n");
+                printf("disconnected from");
             }
             printf(" %s on port %d\n",
                 station->serverIP, station->serverPort);
