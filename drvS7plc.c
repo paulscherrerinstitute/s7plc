@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/11/06 08:55:27 $ */
-/* $Id: drvS7plc.c,v 1.21 2013/11/06 08:55:27 zimoch Exp $ */
+/* $Date: 2015/06/25 11:37:25 $ */
+/* $Id: drvS7plc.c,v 1.22 2015/06/25 11:37:25 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.21 $ */
+/* $Revision: 1.22 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.21 2013/11/06 08:55:27 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.22 2015/06/25 11:37:25 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -194,7 +194,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     if (!IPaddr)
     {
         errlogSevPrintf(errlogFatal,
-            "s7plcConfigure: missing IP address\n");
+            "s7plcConfigure: missing IP address or name\n");
         return -1;
     }
     if (!port)
