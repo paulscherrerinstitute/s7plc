@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2013/06/13 15:30:32 $ */
-/* $Id: devS7plc.c,v 1.17 2013/06/13 15:30:32 zimoch Exp $ */
+/* $Date: 2015/06/29 09:45:47 $ */
+/* $Id: devS7plc.c,v 1.18 2015/06/29 09:45:47 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.17 $ */
+/* $Revision: 1.18 $ */
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -76,7 +76,7 @@ typedef struct {              /* Private structure to save IO arguments */
 } S7memPrivate_t;
 
 static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.17 2013/06/13 15:30:32 zimoch Exp $";
+    "$Id: devS7plc.c,v 1.18 2015/06/29 09:45:47 zimoch Exp $";
 
 STATIC long s7plcReport();
 
@@ -92,6 +92,24 @@ struct devsup {
     DEVSUPFUN get_ioint_info;
     DEVSUPFUN io;
 };
+
+/* stringout for address ********************************************/
+
+STATIC long s7plcInitRecordAddr(stringoutRecord *);
+STATIC long s7plcWriteAddr(stringoutRecord *);
+
+struct devsup s7plcAddr =
+{
+    5,
+    NULL,
+    NULL,
+    s7plcInitRecordAddr,
+    NULL,
+    s7plcWriteAddr
+};
+
+epicsExportAddress(dset, s7plcAddr);
+
 
 /* bi for status bit ************************************************/
 
@@ -705,6 +723,47 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
         return status;
     }
     
+    return 0;
+}
+
+/* stringout for address ********************************************/
+
+STATIC long s7plcInitRecordAddr(stringoutRecord *record)
+{
+    S7memPrivate_t *priv;
+    int status;
+
+    if (record->out.type != INST_IO)
+    {
+        recGblRecordError(S_db_badField, record,
+            "s7plcInitRecordStat: illegal OUT field type");
+        return S_db_badField;
+    }
+    priv = (S7memPrivate_t *)callocMustSucceed(1, sizeof(S7memPrivate_t),
+        "s7plcInitRecordAddr");
+    status = s7plcIoParse(record->name,
+        record->out.value.instio.string, priv);
+    if (status)
+    {
+        recGblRecordError(S_db_badField, record,
+            "s7plcInitRecordAddr: bad OUT field");
+        return S_db_badField;
+    }
+    assert(priv->station);
+    record->dpvt = priv;
+    if (record->val[0] == 0)
+        if (s7plcGetAddr(priv->station, record->val) == 0)
+        {
+            record->udf = 0;
+            record->sevr = 0;
+        }
+    return 0;
+}
+
+STATIC long s7plcWriteAddr(stringoutRecord *record)
+{
+    S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
+    s7plcSetAddr(priv->station, record->val);
     return 0;
 }
 

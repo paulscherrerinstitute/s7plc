@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */
-/* $Date: 2015/06/25 11:37:25 $ */
-/* $Id: drvS7plc.c,v 1.22 2015/06/25 11:37:25 zimoch Exp $ */
+/* $Date: 2015/06/29 09:45:47 $ */
+/* $Id: drvS7plc.c,v 1.23 2015/06/29 09:45:47 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.22 $ */
+/* $Revision: 1.23 $ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +17,7 @@
 #include <sockLib.h>
 #define in_addr_t unsigned long
 #define socklen_t int
+#define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #else
 #include <fcntl.h>
 #endif
@@ -52,7 +53,7 @@
 #define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
 
 static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.22 2015/06/25 11:37:25 zimoch Exp $";
+"$Id: drvS7plc.c,v 1.23 2015/06/29 09:45:47 zimoch Exp $";
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -191,12 +192,14 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
             "s7plcConfigure: missing name\n");
         return -1;
     }
-    if (!IPaddr)
+    
+    if (!IPaddr || !IPaddr[0])
     {
-        errlogSevPrintf(errlogFatal,
-            "s7plcConfigure: missing IP address or name\n");
-        return -1;
+        IPaddr = NULL;
+        errlogSevPrintf(errlogInfo,
+            "s7plcConfigure: missing IP address or name. Waiting for address set by record.\n");
     }
+    else
     if (!port)
     {
         errlogSevPrintf(errlogFatal,
@@ -208,7 +211,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     for (pstation = &s7plcStationList; *pstation; pstation = &(*pstation)->next);
     
     station = callocMustSucceed(1,
-        sizeof(s7plcStation) + inSize + outSize + strlen(name)+1 + strlen(IPaddr)+1, "s7plcConfigure");
+        sizeof(s7plcStation) + inSize + outSize + strlen(name)+1, "s7plcConfigure");
     station->next = NULL;
     station->serverPort = port;
     station->inSize = inSize;
@@ -217,8 +220,7 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station->outBuffer = (char*)(station+1)+inSize;
     station->name = (char*)(station+1)+inSize+outSize;
     strcpy(station->name, name);
-    station->serverIP = (char*)(station+1)+inSize+outSize+strlen(name)+1;
-    strcpy(station->serverIP, IPaddr);
+    station->serverIP = IPaddr ? strdup(IPaddr) : NULL;
     station->swapBytes = bigEndian ^ bigEndianIoc;
     station->socket = -1;
     station->mutex = epicsMutexMustCreate();
@@ -453,31 +455,34 @@ void s7plcMain ()
             epicsMutexMustLock(station->io);
             if (station->socket == -1)
             {
-                /* create station socket */
-                if ((station->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                if (station->serverIP)
                 {
-                    fprintf(stderr, "s7plcMain %s: FATAL ERROR! socket(AF_INET, SOCK_STREAM, 0) failed: %s\n",
-                        station->name, strerror(errno));
-                    abort();
-                }
-                s7plcDebugLog(1,
-                    "s7plcMain %s: Connect to %s:%d on socket %d\n",
-                    station->name,
-                    station->serverIP, station->serverPort, station->socket);
-                if (s7plcEstablishConnection(station) < 0)
-                {
+                    /* create station socket */
+                    if ((station->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                    {
+                        fprintf(stderr, "s7plcMain %s: FATAL ERROR! socket(AF_INET, SOCK_STREAM, 0) failed: %s\n",
+                            station->name, strerror(errno));
+                        abort();
+                    }
                     s7plcDebugLog(1,
-                        "s7plcMain %s: connect(%d, %s:%d) failed: %s. Retry in %g seconds\n",
+                        "s7plcMain %s: Connect to %s:%d on socket %d\n",
                         station->name,
-                        station->socket, station->serverIP, station->serverPort,
-                        strerror(errno), (double)RECONNECT_DELAY);
-                    if (close(station->socket) && errno != ENOTCONN)
+                        station->serverIP, station->serverPort, station->socket);
+                    if (s7plcEstablishConnection(station) < 0)
                     {
                         s7plcDebugLog(1,
-                            "s7plcMain %s: close(%d) failed (ignored): %s\n",
-                            station->name, station->socket, strerror(errno));
+                            "s7plcMain %s: connect(%d, %s:%d) failed: %s. Retry in %g seconds\n",
+                            station->name,
+                            station->socket, station->serverIP, station->serverPort,
+                            strerror(errno), (double)RECONNECT_DELAY);
+                        if (close(station->socket) && errno != ENOTCONN)
+                        {
+                            s7plcDebugLog(1,
+                                "s7plcMain %s: close(%d) failed (ignored): %s\n",
+                                station->name, station->socket, strerror(errno));
+                        }
+                        station->socket=-1;
                     }
-                    station->socket=-1;
                 }
             }
             epicsMutexUnlock(station->io);
@@ -708,6 +713,7 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
     errno = 0;
     while ((iSelect=select(socket+1,&socklist, 0, 0,&to)) < 0)
     {
+        if (station->socket == -1) return -1;
         if (errno != EINTR)
         {
             s7plcDebugLog(0,
@@ -746,8 +752,8 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
     if (hostToIPAddr(station->serverIP, &serverAddr.sin_addr) < 0)
     {
         s7plcDebugLog(0,
-            "s7plcEstablishConnection %s: hostToIPAddr(%s) failed: %s\n",
-            station->name, station->serverIP, strerror(errno));
+            "s7plcEstablishConnection %s: hostToIPAddr(%s) failed.\n",
+            station->name, station->serverIP);
         return -1;
     }
 
@@ -878,4 +884,34 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
     epicsMutexUnlock(station->mutex);
     /* notify all "I/O Intr" input records */
     scanIoRequest(station->inScanPvt);
+}
+
+int s7plcGetAddr(s7plcStation* station, char* addr)
+{
+    s7plcDebugLog(1, "s7plcGetAddr %s:%d\n", station->serverIP, station->serverPort);
+    if (station->serverIP && strlen(station->serverIP) <= 30)
+    {
+        sprintf(addr, "%.30s:%d", station->serverIP, station->serverPort);
+        return 0;
+    }
+    return -1;
+}
+
+int s7plcSetAddr(s7plcStation* station, const char* addr)
+{
+    char* c;
+    
+    s7plcDebugLog(1, "s7plcSetAddr %s\n", addr);
+    epicsMutexMustLock(station->mutex);
+    s7plcCloseConnection(station);
+    free(station->serverIP);
+    station->serverIP = strdup(addr);
+    c = strchr(station->serverIP, ':');
+    if (c)
+    {
+        station->serverPort = strtol(c+1,NULL,10);
+        *c = 0;
+    }
+    epicsMutexUnlock(station->mutex);
+    return 0;
 }

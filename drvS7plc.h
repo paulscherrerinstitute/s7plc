@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */ 
-/* $Date: 2005/03/11 15:16:13 $ */ 
-/* $Id: drvS7plc.h,v 1.3 2005/03/11 15:16:13 zimoch Exp $ */  
+/* $Date: 2015/06/29 09:45:47 $ */ 
+/* $Id: drvS7plc.h,v 1.4 2015/06/29 09:45:47 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.3 $ */ 
+/* $Revision: 1.4 $ */ 
 
 #ifndef drvS7plc_h
 #define drvS7plc_h
@@ -31,6 +31,8 @@ __attribute__((format(printf, 2, 3)));
 s7plcStation *s7plcOpen(char *name);
 IOSCANPVT s7plcGetInScanPvt(s7plcStation *station);
 IOSCANPVT s7plcGetOutScanPvt(s7plcStation *station);
+int s7plcGetAddr(s7plcStation* station, char* addr);
+int s7plcSetAddr(s7plcStation* station, const char* addr);
 
 int s7plcReadArray(
     s7plcStation *station,
