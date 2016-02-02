@@ -77,4 +77,6 @@ int s7plcWriteMaskedArray(
 #define S_drv_alreadyQd drvError(6)/*driver: a read request is already queued for the channel*/
 #define S_drv_noConn drvError(7) /*driver:   connection to plc lost*/
 
+#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) fprintf(stderr, fmt, ##args);
+
 #endif /* drvS7plc_h */

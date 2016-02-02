@@ -1818,7 +1818,7 @@ STATIC long s7plcReadAi(aiRecord *record)
         case epicsFloat64T:
             status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
-            __extension__ s7plcDebugLog(3, "ai %s: read 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(3, "ai %s: read 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             floatval = TRUE;
             break;
@@ -2004,7 +2004,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             /* emulate scaling */
             val64.f = record->oval - record->aoff;
             if (record->aslo != 0) val64.f /= record->aslo;
-            __extension__ s7plcDebugLog(2, "ao %s: write 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(2, "ao %s: write 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
@@ -2622,7 +2622,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
                 4, &val32);
             break;
         case epicsFloat64T:
-            __extension__ s7plcDebugLog(2, "calcout %s: write 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(2, "calcout %s: write 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
