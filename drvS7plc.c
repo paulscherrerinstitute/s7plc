@@ -82,6 +82,9 @@ epicsExportAddress(drvet, s7plc);
 int s7plcDebug = 0;
 epicsExportAddress(int, s7plcDebug);
 
+int s7plcRecvMode = 0;
+epicsExportAddress(int, s7plcRecvMode);
+
 struct s7plcStation {
     struct s7plcStation* next;
     char* name;
@@ -658,8 +661,12 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
             epicsMutexMustLock(station->io);
             if (status > 0)
             {
+                int receiveSize = station->inSize;
+                if (s7plcRecvMode == 1) receiveSize += 1;
+                if (s7plcRecvMode > 1) receiveSize *= 2;
+
                 /* data available; read data from server plc; try more data to detect exess bytes */
-                received = recv(station->socket, recvBuf+input, station->inSize*2-input, 0);
+                received = recv(station->socket, recvBuf+input, receiveSize-input, 0);
                 s7plcDebugLog(3,
                     "s7plcReceiveThread %s: received %d bytes\n",
                     station->name, received);
@@ -684,19 +691,24 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
                     break;
                 }
                 input += received;
-            }
-            if (input > station->inSize)
-            {
-                /* input complete, check for excess bytes */
-                if (status > 0)
+                if (input > station->inSize)
                 {
+                    /* check for excess bytes */
                     s7plcErrorLog(
                         "s7plcReceiveThread %s: %d bytes excess data received\n",
                         station->name, input - station->inSize);
+                    /* flush any rubbish */
+                    if (s7plcRecvMode > 2)
+                    while ((received = recv(station->socket, recvBuf, receiveSize, 0)) > 0)
+                    {
+                        s7plcErrorLog(
+                            "s7plcReceiveThread %s: flushing %d more bytes\n",
+                            station->name, received);
+                    }
                     s7plcCloseConnection(station);
+                    epicsMutexUnlock(station->io);
+                    break;
                 }
-                epicsMutexUnlock(station->io);
-                break;
             }
             if (status <= 0 && timeout > 0.0)
             {
