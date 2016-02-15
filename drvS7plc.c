@@ -61,7 +61,7 @@ void s7plcMain ();
 STATIC void s7plcSendThread(s7plcStation* station);
 STATIC void s7plcReceiveThread(s7plcStation* station);
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
-STATIC int s7plcEstablishConnection(s7plcStation* station);
+STATIC int s7plcEstablishConnection(s7plcStation* station, int sockFd);
 STATIC void s7plcCloseConnection(s7plcStation* station);
 STATIC void s7plcSignal(void* event);
 s7plcStation* s7plcStationList = NULL;
@@ -82,20 +82,17 @@ epicsExportAddress(drvet, s7plc);
 int s7plcDebug = 0;
 epicsExportAddress(int, s7plcDebug);
 
-int s7plcRecvMode = 0;
-epicsExportAddress(int, s7plcRecvMode);
-
 struct s7plcStation {
     struct s7plcStation* next;
     char* name;
-    char* serverIP;
+    char* server;
     int serverPort;
     int inSize;
     int outSize;
-    char* inBuffer;
-    char* outBuffer;
+    unsigned char* inBuffer;
+    unsigned char* outBuffer;
     int swapBytes;
-    volatile int socket;
+    volatile int sockFd;
     epicsMutexId mutex;
     epicsMutexId io;
     epicsTimerId timer;
@@ -109,7 +106,9 @@ struct s7plcStation {
     float sendIntervall;
 };
 
-#define s7plcErrorLog(fmt, args...) fprintf(stderr, "%s " fmt, currentTime(), ##args);
+#define s7plcErrorLog(fmt, args...) fprintf(stderr, "%s " fmt, currentTime() , ##args)
+#undef s7plcDebugLog
+#define s7plcDebugLog(level, fmt, args...) if (level<=s7plcDebug) fprintf(stderr, "%s " fmt, currentTime() , ##args)
 
 #ifdef BASE_VERSION
 /* 3.13 */
@@ -134,42 +133,61 @@ char* currentTime()
 }
 #endif
 
+STATIC void hexdump(unsigned char* data, int size, int ascii)
+{
+    int offs, x;
+    for (offs = 0; offs < size; offs += 16)
+    {
+        printf("%04x:", offs);
+        for (x = 0; x < 16; x++)
+            if (offs+x >= size) printf ("   ");
+            else printf(" %02x", data[offs+x]);
+        if (ascii)
+        {
+            printf(" | ");
+            for (x = 0; x < 16; x++)
+                if (offs+x >= size) printf(" ");
+                else if (data[offs+x]>=32 && data[offs+x]<127) printf("%c", data[offs+x]);
+                else printf (".");
+        }
+        printf("\n");
+    }
+}
+
 STATIC long s7plcIoReport(int level)
 {
     s7plcStation *station;
 
-    printf("%s\n", cvsid);
-    if (level == 1)
+    if (!s7plcStationList)
     {
-        printf("S7plc stations:\n");
-        for (station = s7plcStationList; station;
-            station=station->next)
-        {
-            printf("  Station %s ", station->name);
-            if (station->socket != -1)
-            {
-                printf("connected via fd %d to",
-                    station->socket);
-            }
-            else
-            {
-                printf("disconnected from");
-            }
-            printf(" %s on port %d\n",
-                station->serverIP, station->serverPort);
-            printf("    inBuffer  at address %p (%d bytes)\n",
-                station->inBuffer,  station->inSize);
-            printf("    outBuffer at address %p (%d bytes)\n",
-                station->outBuffer,  station->outSize);
-            printf("    swap bytes %s\n",
-                station->swapBytes
-                    ? ( bigEndianIoc ? "ioc:motorola <-> plc:intel" : "ioc:intel <-> plc:motorola" )
-                    : ( bigEndianIoc ? "no, both motorola" : "no, both intel" ) );
-            printf("    receive timeout %g sec\n",
-                station->recvTimeout);
-            printf("    send intervall  %g sec\n",
-                station->sendIntervall);
-        }
+        printf("No PLCs configured\n");
+        return 0;
+    }
+    for (station = s7plcStationList; station;
+        station=station->next)
+    {
+        printf("  %s %s %s:%d\n",
+            station->name,
+            station->sockFd != -1 ? "connected to" : "disconnected from",
+            station->server, station->serverPort);
+        if (level < 1) continue;
+        printf("    file descriptor %d\n", station->sockFd);
+        printf("    swap bytes %s\n",
+            station->swapBytes
+                ? ( bigEndianIoc ? "ioc:motorola <-> plc:intel" : "ioc:intel <-> plc:motorola" )
+                : ( bigEndianIoc ? "no, both motorola" : "no, both intel" ) );
+        printf("    receive timeout %g sec\n",
+            station->recvTimeout);
+        printf("    send intervall  %g sec\n",
+            station->sendIntervall);
+        printf("    inBuffer  at address %p (%d bytes)\n",
+            station->inBuffer,  station->inSize);
+        if (level >= 2)
+            hexdump(station->inBuffer,  station->inSize, level >= 3);
+        printf("    outBuffer at address %p (%d bytes)\n",
+            station->outBuffer,  station->outSize);
+        if (level >= 2)
+            hexdump(station->outBuffer,  station->outSize, level >= 3);
     }
     return 0;
 }
@@ -178,7 +196,7 @@ STATIC long s7plcInit()
 {
     if (!s7plcStationList) {
         errlogSevPrintf(errlogInfo,
-            "s7plcInit: no stations configured\n");
+            "s7plcInit: no PLCs configured\n");
         return 0;
     }
     s7plcDebugLog(1, "s7plcInit: starting main thread\n");
@@ -234,13 +252,13 @@ int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, 
     station->serverPort = port;
     station->inSize = inSize;
     station->outSize = outSize;
-    station->inBuffer = (char*)(station+1);
-    station->outBuffer = (char*)(station+1)+inSize;
+    station->inBuffer = (unsigned char*)(station+1);
+    station->outBuffer = (unsigned char*)(station+1)+inSize;
     station->name = (char*)(station+1)+inSize+outSize;
     strcpy(station->name, name);
-    station->serverIP = IPaddr ? strdup(IPaddr) : NULL;
+    station->server = IPaddr ? strdup(IPaddr) : NULL;
     station->swapBytes = bigEndian ^ bigEndianIoc;
-    station->socket = -1;
+    station->sockFd = -1;
     station->mutex = epicsMutexMustCreate();
     station->io = epicsMutexMustCreate();
     station->outputChanged = 0;
@@ -376,7 +394,7 @@ int s7plcReadArray(
         s7plcDebugLog(5, "\n");
     }    
     epicsMutexUnlock(station->mutex);
-    if (station->socket == -1) return S_drv_noConn;
+    if (station->sockFd == -1) return S_drv_noConn;
     return S_drv_OK;
 }
 
@@ -454,7 +472,7 @@ int s7plcWriteMaskedArray(
         station->outputChanged=1;
     }    
     epicsMutexUnlock(station->mutex);
-    if (station->socket == -1) return S_drv_noConn;
+    if (station->sockFd == -1) return S_drv_noConn;
     return S_drv_OK;
 }
 
@@ -466,42 +484,44 @@ void s7plcMain ()
     s7plcDebugLog(1, "s7plcMain: main thread started\n");
     
     while (1)
-    {   /* watch loop to restart dead threads and reopen sockets*/
+    {   /* watch loop to restart dead threads and reopen sockFds*/
         for (station = s7plcStationList; station; station=station->next)
         {            
             /* establish connection with server */
             epicsMutexMustLock(station->io);
-            if (station->socket == -1)
+            if (station->sockFd == -1)
             {
-                if (station->serverIP)
+                if (station->server)
                 {
-                    /* create station socket */
-                    if ((station->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                    int sockFd;
+                   /* create station sockFd */
+                    if ((sockFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
                     {
                         s7plcErrorLog(
-                            "s7plcMain %s: FATAL ERROR! socket(AF_INET, SOCK_STREAM, 0) failed: %s\n",
+                            "s7plcMain %s: FATAL ERROR! sockFd(AF_INET, SOCK_STREAM, 0) failed: %s\n",
                             station->name, strerror(errno));
                         abort();
                     }
                     s7plcDebugLog(1,
-                        "s7plcMain %s: Connect to %s:%d on socket %d\n",
+                        "s7plcMain %s: Connect to %s:%d on sockFd %d\n",
                         station->name,
-                        station->serverIP, station->serverPort, station->socket);
-                    if (s7plcEstablishConnection(station) < 0)
+                        station->server, station->serverPort, sockFd);
+                    if (s7plcEstablishConnection(station, sockFd) < 0)
                     {
                         s7plcDebugLog(1,
-                            "s7plcMain %s: connect(%d, %s:%d) failed: %s. Retry in %g seconds\n",
+                            "s7plcMain %s: connect(%d, %s:%d) failed. Retry in %g seconds\n",
                             station->name,
-                            station->socket, station->serverIP, station->serverPort,
-                            strerror(errno), (double)RECONNECT_DELAY);
-                        if (close(station->socket) && errno != ENOTCONN)
+                            sockFd, station->server, station->serverPort,
+                            (double)RECONNECT_DELAY);
+                        if (close(sockFd) && errno != ENOTCONN)
                         {
                             s7plcDebugLog(1,
                                 "s7plcMain %s: close(%d) failed (ignored): %s\n",
-                                station->name, station->socket, strerror(errno));
+                                station->name, sockFd, strerror(errno));
                         }
-                        station->socket=-1;
                     }
+                    else
+                        station->sockFd = sockFd;
                 }
             }
             epicsMutexUnlock(station->io);
@@ -586,7 +606,7 @@ STATIC void s7plcSendThread (s7plcStation* station)
         s7plcDebugLog(2, "s7plcSendThread %s: look for data to send\n",
             station->name);
 
-        if (interruptAccept && station->socket != -1)
+        if (interruptAccept && station->sockFd != -1)
         {
             if (station->outputChanged)
             {
@@ -597,19 +617,19 @@ STATIC void s7plcSendThread (s7plcStation* station)
 
                 s7plcDebugLog(4, "send %d bytes\n", station->outSize);
                 epicsMutexMustLock(station->io);
-                if (station->socket != -1)
+                if (station->sockFd != -1)
                 {
                     int written;
                     s7plcDebugLog(2,
                         "s7plcSendThread %s: sending %d bytes\n",
                         station->name, station->outSize);
-                    written=send(station->socket, sendBuf, station->outSize, 0);
+                    written=send(station->sockFd, sendBuf, station->outSize, 0);
                     if (written < 0)
                     {
                         s7plcErrorLog(
                             "s7plcSendThread %s: send(%d, ..., %d, 0) failed: %s\n",
                             station->name,
-                            station->socket, station->outSize, strerror(errno));
+                            station->sockFd, station->outSize, strerror(errno));
                         s7plcCloseConnection(station);
                     }
                 }
@@ -627,7 +647,7 @@ STATIC void s7plcSendThread (s7plcStation* station)
 
 STATIC void s7plcReceiveThread (s7plcStation* station)
 {
-    char*  recvBuf = callocMustSucceed(2, station->inSize, "s7plcReceiveThread");
+    unsigned char* recvBuf = callocMustSucceed(1, station->inSize, "s7plcReceiveThread");
 
     s7plcDebugLog(1, "s7plcReceiveThread %s: started\n",
             station->name);
@@ -642,12 +662,12 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
         input = 0;
         timeout = station->recvTimeout;
         /* check (with timeout) for data arrival from server */
-        while (station->socket != -1 && input < station->inSize)
+        while (station->sockFd != -1 && input < station->inSize)
         {
             /* Don't lock here! We need to be able to send while we wait */
             s7plcDebugLog(3,
-                "s7plcReceiveThread %s: waiting for input for %g seconds\n",
-                station->name, timeout);
+                "s7plcReceiveThread %s: waiting on fd %d for input for %g seconds\n",
+                station->name, station->sockFd, timeout);
             status = s7plcWaitForInput(station, timeout);
             if (status < 0)
             {
@@ -662,19 +682,17 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
             if (status > 0)
             {
                 int receiveSize = station->inSize;
-                if (s7plcRecvMode == 1) receiveSize += 1;
-                if (s7plcRecvMode > 1) receiveSize *= 2;
 
                 /* data available; read data from server plc; try more data to detect exess bytes */
-                received = recv(station->socket, recvBuf+input, receiveSize-input, 0);
-                s7plcDebugLog(3,
+                received = recv(station->sockFd, recvBuf+input, receiveSize-input, 0);
+                s7plcDebugLog(1,
                     "s7plcReceiveThread %s: received %d bytes\n",
                     station->name, received);
                 if (received == 0)
                 {
                     s7plcErrorLog(
                         "s7plcReceiveThread %s: connection closed by %s\n",
-                        station->name, station->serverIP);
+                        station->name, station->server);
                     s7plcCloseConnection(station);
                     epicsMutexUnlock(station->io);
                     break;
@@ -684,31 +702,13 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
                     s7plcErrorLog(
                         "s7plcReceiveThread %s: recv(%d, ..., %d, 0) failed: %s\n",
                         station->name,
-                        station->socket, station->inSize-input,
+                        station->sockFd, station->inSize-input,
                         strerror(errno));
                     s7plcCloseConnection(station);
                     epicsMutexUnlock(station->io);
                     break;
                 }
                 input += received;
-                if (input > station->inSize)
-                {
-                    /* check for excess bytes */
-                    s7plcErrorLog(
-                        "s7plcReceiveThread %s: %d bytes excess data received\n",
-                        station->name, input - station->inSize);
-                    /* flush any rubbish */
-                    if (s7plcRecvMode > 2)
-                    while ((received = recv(station->socket, recvBuf, receiveSize, 0)) > 0)
-                    {
-                        s7plcErrorLog(
-                            "s7plcReceiveThread %s: flushing %d more bytes\n",
-                            station->name, received);
-                    }
-                    s7plcCloseConnection(station);
-                    epicsMutexUnlock(station->io);
-                    break;
-                }
             }
             if (status <= 0 && timeout > 0.0)
             {
@@ -723,7 +723,7 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
             epicsMutexUnlock(station->io);
 /*            timeout = (input < station->inSize)? 0.1 : 0.0; */
         }
-        if (station->socket != -1)
+        if (station->sockFd != -1)
         {
             epicsMutexMustLock(station->mutex);
             memcpy(station->inBuffer, recvBuf, station->inSize);
@@ -738,9 +738,9 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
         {
             s7plcDebugLog(1,
                 "s7plcReceiveThread %s: connection down, sleeping %g seconds\n",
-                station->name, station->recvTimeout/4);
+                station->name, CONNECT_TIMEOUT/4);
             /* lost connection. Wait some time */
-            epicsThreadSleep(station->recvTimeout/4);
+            epicsThreadSleep(CONNECT_TIMEOUT/4);
         }
     }
 }
@@ -748,25 +748,24 @@ STATIC void s7plcReceiveThread (s7plcStation* station)
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
 {
     static struct timeval to;
-    int socket;
+    int sockFd;
     int iSelect;
     fd_set socklist;
 
-    socket = station->socket;
+    sockFd = station->sockFd;
     FD_ZERO(&socklist);
-    FD_SET(socket, &socklist);
+    FD_SET(sockFd, &socklist);
     to.tv_sec=(int)timeout;
     to.tv_usec=(int)((timeout-to.tv_sec)*1000000);
-    /* select returns when either the socket has data or the timeout elapsed */
-    errno = 0;
-    while ((iSelect=select(socket+1,&socklist, 0, 0,&to)) < 0)
+    /* select returns when either the sockFd has data or the timeout elapsed */
+    while ((iSelect=select(sockFd+1,&socklist, 0, 0,&to)) < 0)
     {
-        if (station->socket == -1) return -1;
+        if (station->sockFd == -1) return -1;
         if (errno != EINTR)
         {
             s7plcErrorLog(
                 "s7plcWaitForInput %s: select(%d, %g sec) failed: %s\n",
-                station->name, station->socket, timeout,
+                station->name, station->sockFd, timeout,
                 strerror(errno));
             return -1;
         }
@@ -777,31 +776,33 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
             "s7plcWaitForInput %s: timeout after %g seconds\n",
             station->name, timeout);
         errno = ETIMEDOUT;
+        return -1;
     }
     return iSelect;
 }
 
-STATIC int s7plcEstablishConnection(s7plcStation* station)
+STATIC int s7plcEstablishConnection(s7plcStation* station, int sockFd)
 {
-    struct sockaddr_in    serverAddr;    /* server socket address */
+    struct sockaddr_in    serverAddr;    /* server sockFd address */
     struct timeval    to;
 #if (!defined(vxWorks)) && (!defined(__vxworks))
     long opt;
 #endif
 
-    s7plcDebugLog(1, "s7plcEstablishConnection %s: fd=%d, IP=%s port=%d\n",
-        station->name,
-        station->socket, station->serverIP, station->serverPort);
+    s7plcDebugLog(1, "s7plcEstablishConnection %s: sockFd=%d IP=%s port=%d\n",
+        station->name, sockFd, station->server, station->serverPort);
 
-    /* build server socket address */
+    if (station->server[0] == '\0') return -1; /* empty host string */
+
+    /* build server sockFd address */
     memset((char *) &serverAddr, 0, sizeof (serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(station->serverPort);
-    if (hostToIPAddr(station->serverIP, &serverAddr.sin_addr) < 0)
+    if (hostToIPAddr(station->server, &serverAddr.sin_addr) < 0)
     {
         s7plcErrorLog(
             "s7plcEstablishConnection %s: hostToIPAddr(%s) failed.\n",
-            station->name, station->serverIP);
+            station->name, station->server);
         return -1;
     }
 
@@ -809,34 +810,32 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
     to.tv_sec=(int)(CONNECT_TIMEOUT);
     to.tv_usec=(int)(CONNECT_TIMEOUT-to.tv_sec)*1000000;
 #if defined(vxWorks) || defined(__vxworks)
-    if (connectWithTimeout(station->socket,
+    if (connectWithTimeout(sockFd,
         (struct sockaddr *) &serverAddr, sizeof (serverAddr), &to) < 0)
     {
         s7plcErrorLog(
             "s7plcEstablishConnection %s: connectWithTimeout(%d, %s:%d, %g sec) failed: %s\n",
-            station->name, station->socket, station->serverIP, station->serverPort, CONNECT_TIMEOUT, strerror(errno));
+            station->name, sockFd, station->server, station->serverPort, CONNECT_TIMEOUT, strerror(errno));
         return -1;
     }
 #else
     /* connect in non-blocking mode */
-    if((opt = fcntl(station->socket, F_GETFL, NULL)) < 0)
+    if((opt = fcntl(sockFd, F_GETFL, NULL)) < 0)
     {
         s7plcErrorLog(
             "s7plcEstablishConnection %s: fcntl(%d, F_GETFL, NULL) failed: %s\n",
-            station->name,
-            station->socket, strerror(errno));
+            station->name, sockFd, strerror(errno));
         return -1;
     }
     opt |= O_NONBLOCK;
-    if(fcntl(station->socket, F_SETFL, opt) < 0)
+    if(fcntl(sockFd, F_SETFL, opt) < 0)
     {
         s7plcErrorLog(
             "s7plcEstablishConnection %s: fcntl(%d, F_SETFL, O_NONBLOCK) failed: %s\n",
-            station->name,
-            station->socket, strerror(errno));
+            station->name, sockFd, strerror(errno));
         return -1;
     }
-    if (connect(station->socket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
+    if (connect(sockFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
     {
         if (errno == EINPROGRESS)
         {
@@ -846,15 +845,15 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
             fd_set fdset;
 
             FD_ZERO(&fdset);
-            FD_SET(station->socket, &fdset);
+            FD_SET(sockFd, &fdset);
             /* wait for connection */
-            while ((status = select(station->socket+1, NULL, &fdset, NULL, &to)) < 0)
+            while ((status = select(sockFd+1, NULL, &fdset, NULL, &to)) < 0)
             {
                 if (errno != EINTR)
                 {
                     s7plcErrorLog(
                         "s7plcEstablishConnection %s: select(%d, %f sec) failed: %s\n",
-                        station->name, station->socket, CONNECT_TIMEOUT, strerror(errno));
+                        station->name, sockFd, CONNECT_TIMEOUT, strerror(errno));
                     return -1;
                 }
             }
@@ -862,25 +861,22 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
             {
                 s7plcErrorLog(
                     "s7plcEstablishConnection %s: connect to %s:%d timeout after %g seconds\n",
-                    station->name, station->serverIP, station->serverPort, CONNECT_TIMEOUT);
-                errno = ETIMEDOUT;
+                    station->name, station->server, station->serverPort, CONNECT_TIMEOUT);
                 return -1;
             }
             /* get background error status */
-            if (getsockopt(station->socket, SOL_SOCKET, SO_ERROR, &status, &lon) < 0)
+            if (getsockopt(sockFd, SOL_SOCKET, SO_ERROR, &status, &lon) < 0)
             {
                 s7plcErrorLog(
                     "s7plcEstablishConnection %s: getsockopt(%d,...) failed: %s\n",
-                    station->name,
-                    station->socket, strerror(errno));
+                    station->name, sockFd, strerror(errno));
                 return -1;
             }
             if (status)
             {
-                errno = status;
                 s7plcErrorLog(
-                    "s7plcEstablishConnection %s: connect to %s:%d failed: %s\n",
-                    station->name, station->serverIP, station->serverPort, strerror(errno));
+                    "s7plcEstablishConnection %s: background connect to %s:%d failed: %s\n",
+                    station->name, station->server, station->serverPort, strerror(status));
                 return -1;
             }
         }
@@ -888,24 +884,23 @@ STATIC int s7plcEstablishConnection(s7plcStation* station)
         {
             s7plcErrorLog(
                 "s7plcEstablishConnection %s: connect to %s:%d failed: %s\n",
-                station->name, station->serverIP, station->serverPort, strerror(errno));
+                station->name, station->server, station->serverPort, strerror(errno));
             return -1;
         }
     }
     /* connected */
     opt &= ~O_NONBLOCK;
-    if(fcntl(station->socket, F_SETFL, opt) < 0)
+    if(fcntl(sockFd, F_SETFL, opt) < 0)
     {
         s7plcErrorLog(
             "s7plcEstablishConnection %s: fcntl(%d, F_SETFL, ~O_NONBLOCK) failed: %s\n",
-            station->name,
-            station->socket, strerror(errno));
+            station->name, sockFd, strerror(errno));
         return -1;
     }
 #endif
     s7plcErrorLog(
         "s7plcEstablishConnection %s: connected to %s:%d\n",
-        station->name, station->serverIP, station->serverPort);
+        station->name, station->server, station->serverPort);
     return 0;
 }
 
@@ -914,23 +909,23 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
     s7plcErrorLog(
         "s7plcCloseConnection %s\n", station->name);
     epicsMutexMustLock(station->mutex);
-    if (station->socket>0)
+    if (station->sockFd>0)
     {
-        if (shutdown(station->socket, 2) < 0)
+        if (shutdown(station->sockFd, 2) < 0)
         {
             s7plcErrorLog(
                 "s7plcCloseConnection %s: shutdown(%d, 2) failed (ignored): %s\n",
                 station->name,
-                station->socket, strerror(errno));
+                station->sockFd, strerror(errno));
         }
-        if (close(station->socket) && errno != ENOTCONN)
+        if (close(station->sockFd) && errno != ENOTCONN)
         {
             s7plcErrorLog(
                 "s7plcCloseConnection %s: close(%d) failed (ignored): %s\n",
                 station->name,
-                station->socket, strerror(errno));
+                station->sockFd, strerror(errno));
         }
-        station->socket = -1;
+        station->sockFd = -1;
     }
     epicsMutexUnlock(station->mutex);
     /* notify all "I/O Intr" input records */
@@ -939,10 +934,10 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
 
 int s7plcGetAddr(s7plcStation* station, char* addr)
 {
-    s7plcDebugLog(1, "s7plcGetAddr %s:%d\n", station->serverIP, station->serverPort);
-    if (station->serverIP && strlen(station->serverIP) <= 30)
+    s7plcDebugLog(1, "s7plcGetAddr %s:%d\n", station->server, station->serverPort);
+    if (station->server && strlen(station->server) <= 30)
     {
-        sprintf(addr, "%.30s:%d", station->serverIP, station->serverPort);
+        sprintf(addr, "%.30s:%d", station->server, station->serverPort);
         return 0;
     }
     return -1;
@@ -955,9 +950,9 @@ int s7plcSetAddr(s7plcStation* station, const char* addr)
     s7plcDebugLog(1, "s7plcSetAddr %s\n", addr);
     epicsMutexMustLock(station->mutex);
     s7plcCloseConnection(station);
-    free(station->serverIP);
-    station->serverIP = strdup(addr);
-    c = strchr(station->serverIP, ':');
+    free(station->server);
+    station->server = strdup(addr);
+    c = strchr(station->server, ':');
     if (c)
     {
         station->serverPort = strtol(c+1,NULL,10);

@@ -1,3 +1,2 @@
 registrar(s7plcRegister)
 variable(s7plcDebug, int)
-variable(s7plcRecvMode, int)

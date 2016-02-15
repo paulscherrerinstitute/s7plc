@@ -75,11 +75,6 @@ typedef struct {              /* Private structure to save IO arguments */
     epicsInt32 hwHigh;        /* Hardware High limit */
 } S7memPrivate_t;
 
-static char cvsid_devS7plc[] =
-    "$Id: devS7plc.c,v 1.18 2015/06/29 09:45:47 zimoch Exp $";
-
-STATIC long s7plcReport();
-
 STATIC int s7plcIoParse(char* recordName, char *parameters, S7memPrivate_t *);
 STATIC long s7plcGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
 STATIC long s7plcGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
@@ -204,7 +199,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *);
 struct devsup s7plcMbbiDirect =
 {
     5,
-    s7plcReport,
+    NULL,
     NULL,
     s7plcInitRecordMbbiDirect,
     s7plcGetInIntInfo,
@@ -429,14 +424,6 @@ struct {
 
 epicsExportAddress(dset, s7plcCalcout);
 #endif
-
-/*********  Report routine ********************************************/
-
-STATIC long s7plcReport()
-{
-   printf("devS7mem version: %s\n", cvsid_devS7plc);
-   return 0;
-}
 
 /*********  Support for "I/O Intr" for input records ******************/
 
