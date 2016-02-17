@@ -159,3 +159,10 @@ typedef struct epicsTimerForC {WDOG_ID wd; FUNCPTR cb; int p;} *epicsTimerId;
     (((psin_addr)->s_addr = hostGetByName(name)) != -1 ? 0 : \
      ((psin_addr)->s_addr = inet_addr(name)) != -1 ? 0 : -1)
 #endif
+
+/* epicsTime */
+#include <tsDefs.h>
+#define epicsTimeStamp TS_STAMP
+#define epicsTimeGetCurrent tsLocalTime
+#define epicsTimeDiffInSeconds(pS1, pS2) \
+    (((pS1)->nsec - (pS2)->nsec) *0.000001 + (pS1)->secPastEpoch - (pS2)->secPastEpoch)

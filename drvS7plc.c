@@ -29,7 +29,6 @@
 #include <drvSup.h>
 #include <devLib.h>
 #include <errlog.h>
-#include <epicsTime.h>
 #include <epicsVersion.h>
 
 #include "drvS7plc.h"
@@ -44,6 +43,7 @@
 #include <epicsThread.h>
 #include <epicsTimer.h>
 #include <epicsEvent.h>
+#include <epicsTime.h>
 #include <epicsExport.h>
 #else
 /* R3.13 */
@@ -113,7 +113,7 @@ struct s7plcStation {
 
 #ifdef BASE_VERSION
 /* 3.13 */
-char* currentTime()
+static char* currentTime()
 {
     static char buffer [40];
     TS_STAMP stamp;
@@ -124,7 +124,7 @@ char* currentTime()
 }
 #else
 /* 3.14+ */
-char* currentTime()
+static char* currentTime()
 {
     static char buffer [40];
     epicsTimeStamp stamp;
@@ -228,7 +228,7 @@ STATIC long s7plcInit()
                 station->name, threadname);
             station->sendThread = epicsThreadCreate(
                 threadname,
-                epicsThreadPriorityLow,
+                epicsThreadPriorityMedium,
                 epicsThreadGetStackSize(epicsThreadStackBig),
                 (EPICSTHREADFUNC)s7plcSendThread,
                 station);
