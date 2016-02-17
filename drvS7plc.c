@@ -208,7 +208,7 @@ STATIC long s7plcInit()
             station->name, threadname);
         station->recvThread = epicsThreadCreate(
             threadname,
-            epicsThreadPriorityMedium,
+            epicsThreadPriorityHigh,
             epicsThreadGetStackSize(epicsThreadStackBig),
             (EPICSTHREADFUNC)s7plcReceiveThread,
             station);
@@ -228,7 +228,7 @@ STATIC long s7plcInit()
                 station->name, threadname);
             station->sendThread = epicsThreadCreate(
                 threadname,
-                epicsThreadPriorityMedium,
+                epicsThreadPriorityLow,
                 epicsThreadGetStackSize(epicsThreadStackBig),
                 (EPICSTHREADFUNC)s7plcSendThread,
                 station);
