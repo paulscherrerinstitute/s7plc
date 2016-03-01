@@ -165,4 +165,4 @@ typedef struct epicsTimerForC {WDOG_ID wd; FUNCPTR cb; int p;} *epicsTimerId;
 #define epicsTimeStamp TS_STAMP
 #define epicsTimeGetCurrent tsLocalTime
 #define epicsTimeDiffInSeconds(pS1, pS2) \
-    (((pS1)->nsec - (pS2)->nsec) *0.000000001 + (pS1)->secPastEpoch - (pS2)->secPastEpoch)
+    (((double) (pS1)->secPastEpoch - (double) (pS2)->secPastEpoch) + (pS1)->nsec * 1e-9 - (pS2)->nsec * 1e-9)
