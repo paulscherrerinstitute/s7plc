@@ -9,10 +9,6 @@
 
 #include <dbScan.h>
 
-#ifndef __GNUC__
-#define __attribute__(a)
-#endif
-
 #ifndef DEBUG
 #define STATIC static
 #else
@@ -24,9 +20,6 @@
 typedef struct s7plcStation s7plcStation;
 
 extern int s7plcDebug;
-
-void s7plcDebugLog(int level, const char *fmt, ...)
-__attribute__((format(printf, 2, 3)));
 
 s7plcStation *s7plcOpen(char *name);
 IOSCANPVT s7plcGetInScanPvt(s7plcStation *station);
@@ -77,6 +70,6 @@ int s7plcWriteMaskedArray(
 #define S_drv_alreadyQd drvError(6)/*driver: a read request is already queued for the channel*/
 #define S_drv_noConn drvError(7) /*driver:   connection to plc lost*/
 
-#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) fprintf(stderr, fmt, ##args);
+#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf(fmt, ##args);
 
 #endif /* drvS7plc_h */

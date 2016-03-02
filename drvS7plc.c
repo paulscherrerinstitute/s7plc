@@ -1,9 +1,3 @@
-/* $Author: zimoch $ */
-/* $Date: 2015/06/29 09:45:47 $ */
-/* $Id: drvS7plc.c,v 1.23 2015/06/29 09:45:47 zimoch Exp $ */
-/* $Name:  $ */
-/* $Revision: 1.23 $ */
- 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -51,10 +45,7 @@
 #endif
 
 #define CONNECT_TIMEOUT   5.0  /* connect timeout [s] */
-#define RECONNECT_DELAY  10.0  /* delay before reconnect [s] */
-
-static char cvsid[] __attribute__((unused)) =
-"$Id: drvS7plc.c,v 1.23 2015/06/29 09:45:47 zimoch Exp $";
+#define RECONNECT_DELAY  30.0  /* delay before reconnect [s] */
 
 STATIC long s7plcIoReport(int level); 
 STATIC long s7plcInit();
@@ -107,13 +98,13 @@ struct s7plcStation {
     float sendIntervall;
 };
 
-#define s7plcErrorLog(fmt, args...) fprintf(stderr, "%s " fmt, currentTime() , ##args)
+#define s7plcErrorLog(fmt, args...) errlogPrintf("%s " fmt, currentTime() , ##args)
 #undef s7plcDebugLog
-#define s7plcDebugLog(level, fmt, args...) if (level<=s7plcDebug) fprintf(stderr, "%s " fmt, currentTime() , ##args)
+#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf("%s " fmt, currentTime() , ##args)
 
 #ifdef BASE_VERSION
 /* 3.13 */
-static char* currentTime()
+STATIC char* currentTime()
 {
     static char buffer [40];
     TS_STAMP stamp;
@@ -124,7 +115,7 @@ static char* currentTime()
 }
 #else
 /* 3.14+ */
-static char* currentTime()
+STATIC char* currentTime()
 {
     static char buffer [40];
     epicsTimeStamp stamp;
@@ -577,6 +568,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
     {
         int input;
         double timeout;
+        double waitTime;
         int received;
         int status;
         epicsTimeStamp start, end;
@@ -607,6 +599,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
             /* Don't lock here! We need to be able to send while we wait */
             status = s7plcWaitForInput(station, timeout);
             epicsTimeGetCurrent(&end);
+            waitTime = epicsTimeDiffInSeconds(&end, &start);
             if (status < 0)
             {
                 s7plcErrorLog(
@@ -620,11 +613,10 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
             {
                 int receiveSize = station->inSize;
 
-                /* data available; read data from server plc; try more data to detect exess bytes */
                 received = recv(station->sockFd, recvBuf+input, receiveSize-input, 0);
                 s7plcDebugLog(1,
                     "s7plcReceiveThread %s: received %4d of %4d bytes after %.6f seconds\n",
-                    station->name, received, receiveSize-input, epicsTimeDiffInSeconds(&end, &start));
+                    station->name, received, receiveSize-input, waitTime);
                 if (received == 0)
                 {
                     s7plcErrorLog(
