@@ -1,9 +1,3 @@
-/* $Author: zimoch $ */
-/* $Date: 2015/06/29 09:45:47 $ */
-/* $Id: devS7plc.c,v 1.18 2015/06/29 09:45:47 zimoch Exp $ */
-/* $Name:  $ */
-/* $Revision: 1.18 $ */
-
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
