@@ -1,0 +1,47 @@
+# Send 6 BCD bytes to PLC
+# year-2000, month, day, hour, minute, second
+
+# Macros
+# DEVICE   The device name prefix
+# PLC      Name for the PLC as configured in s7plcConfigure
+# OFFS     Offset of the 1st byte
+
+record (stringin, "$(DEVICE):TIME")
+{
+    field (SCAN, ".1 second")
+    field (DTYP, "Soft Timestamp")
+    field (INP,  "@%y%m%d%H%M%S")
+    field (FLNK, "$(DEVICE):TIME-CALC1")
+    field (PINI, "YES")
+}
+
+record (scalcout, "$(DEVICE):TIME-CALC1")
+{
+    field (INAA, "$(DEVICE):TIME")
+    field (CALC, "$S(AA[4,11],'%x')")
+    field (OOPT, "On Change")
+    field (OUT,  "$(DEVICE):TIME-OUT1 PP")
+    field (FLNK, "$(DEVICE):TIME-CALC2")
+}
+
+record (scalcout, "$(DEVICE):TIME-CALC2")
+{
+    field (INAA, "$(DEVICE):TIME")
+    field (CALC, "$S(AA[0,3],'%x')")
+    field (OUT,  "$(DEVICE):TIME-OUT2")
+}
+
+record (longout, "$(DEVICE):TIME-OUT1")
+{
+    # day hour minute seconds
+    field (DTYP, "S7plc")
+    field (OUT,  "@$(PLC)/$(OFFS)+2 T=DWORD")
+    field (FLNK, "$(DEVICE):TIME-OUT2")
+}
+
+record (longout, "$(DEVICE):TIME-OUT2")
+{
+    # year month
+    field (DTYP, "S7plc")
+    field (OUT,  "@$(PLC)/$(OFFS) T=WORD")
+}

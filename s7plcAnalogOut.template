@@ -1,0 +1,15 @@
+record (ao, "$(NAME)")
+{
+    field (DESC, "$(DESC)")
+    field (DTYP, "S7plc")
+    field (OUT,  "@$(PLC)/$(OFFS) T=FLOAT")
+    field (DOL,  "$(INP)")
+    field (OMSL, "closed_loop")
+    field (ASLO, "$(ASLO=1)")
+    field (EGU,  "$(EGU=)")
+    field (PREC, "$(PREC=0)")
+    field (LOPR, "$(MIN=0)")
+    field (HOPR, "$(MAX=0)")
+    field (DRVL, "$(DRVL=$(MIN=0))")
+    field (DRVH, "$(DRVH=$(MAX=0))")
+}

@@ -1,0 +1,11 @@
+record (bo, "$(NAME)")
+{
+    field (DESC, "$(DESC)")
+    field (DTYP, "S7plc")
+    field (OUT,  "@$(PLC)/$(OFFS) T=BYTE B=$(BIT)")
+    field (HIGH, "$(HIGH=0)")
+    field (ZNAM, "$(ZNAM=Off)")
+    field (ONAM, "$(ONAM=On)")
+    field (ZSV,  "$(ZSV=NO_ALARM)")
+    field (OSV,  "$(OSV=NO_ALARM)")
+}
