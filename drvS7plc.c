@@ -614,9 +614,6 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
                 int receiveSize = station->inSize;
 
                 received = recv(station->sockFd, recvBuf+input, receiveSize-input, 0);
-                s7plcDebugLog(1,
-                    "s7plcReceiveThread %s: received %4d of %4d bytes after %.6f seconds\n",
-                    station->name, received, receiveSize-input, waitTime);
                 if (received == 0)
                 {
                     s7plcErrorLog(
@@ -635,6 +632,11 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
                     s7plcCloseConnection(station);
                     break;
                 }
+                s7plcDebugLog(1,
+                    "s7plcReceiveThread %s: received %4d of %4d bytes after %.6f seconds\n",
+                    station->name, received, receiveSize-input, waitTime);
+                if (s7plcDebug >= 4)
+                    hexdump(recvBuf+input, received, 1);
                 input += received;
             }
             if (status <= 0 && timeout > 0.0)
