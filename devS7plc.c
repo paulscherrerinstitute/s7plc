@@ -1787,6 +1787,11 @@ STATIC long s7plcReadAi(aiRecord *record)
             s7plcDebugLog(3, "ai %s: read 32bit %04x\n",
                 record->name, uval32);
             record->rval = uval32;
+            if (record->linr == 0)
+            {
+                val64.f = (epicsFloat64)uval32;
+                floatval = TRUE;
+            }
             break;
         case epicsFloat32T:
             status = s7plcRead(priv->station, priv->offs,

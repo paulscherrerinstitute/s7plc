@@ -689,3 +689,10 @@ record (mbbo, "mbbo-int16-3") {
   field (FFVL, "16")
   field (PINI, "YES")
 }
+
+record (ai, "ai-uint32") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem0/12 T=UINT32")
+  field (SCAN, "I/O Intr")
+
+}
