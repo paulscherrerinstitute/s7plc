@@ -79,8 +79,8 @@ struct s7plcStation {
     char* name;
     char* server;
     int serverPort;
-    int inSize;
-    int outSize;
+    unsigned int inSize;
+    unsigned int outSize;
     unsigned char* inBuffer;
     unsigned char* outBuffer;
     int swapBytes;
@@ -172,11 +172,11 @@ STATIC long s7plcIoReport(int level)
             station->recvTimeout);
         printf("    send intervall  %g sec\n",
             station->sendIntervall);
-        printf("    inBuffer  at address %p (%d bytes)\n",
+        printf("    inBuffer  at address %p (%u bytes)\n",
             station->inBuffer,  station->inSize);
         if (level >= 2)
             hexdump(station->inBuffer,  station->inSize, level >= 3);
-        printf("    outBuffer at address %p (%d bytes)\n",
+        printf("    outBuffer at address %p (%u bytes)\n",
             station->outBuffer,  station->outSize);
         if (level >= 2)
             hexdump(station->outBuffer,  station->outSize, level >= 3);
@@ -240,7 +240,7 @@ STATIC void s7plcSignal(void* event)
     epicsEventSignal((epicsEventId)event);
 }
 
-int s7plcConfigure(char *name, char* IPaddr, int port, int inSize, int outSize, int bigEndian, int recvTimeout, int sendIntervall)
+int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inSize, unsigned int outSize, unsigned int bigEndian, unsigned int recvTimeout, unsigned int sendIntervall)
 {
     s7plcStation* station;
     s7plcStation** pstation;
@@ -539,7 +539,7 @@ STATIC void s7plcSendThread(s7plcStation* station)
                             station->sockFd, station->outSize, strerror(errno));
                         s7plcCloseConnection(station);
                     }
-                    else if (written < station->outSize)
+                    else if ((unsigned int)written < station->outSize)
                     {
                         s7plcErrorLog(
                             "s7plcSendThread %s: send wrote only %d of %d bytes\n",
@@ -566,7 +566,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
 
     while (1)
     {
-        int input;
+        unsigned int input;
         double timeout;
         double waitTime;
         int received;
@@ -613,7 +613,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
             {
                 int receiveSize = station->inSize;
 
-                received = recv(station->sockFd, recvBuf+input, receiveSize-input, 0);
+                received = recv(station->sockFd, (void*)recvBuf+input, receiveSize-input, 0);
                 if (received == 0)
                 {
                     s7plcErrorLog(

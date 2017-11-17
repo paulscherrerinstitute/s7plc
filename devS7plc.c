@@ -2432,7 +2432,7 @@ STATIC long s7plcWriteAao(aaoRecord *record)
     assert(priv->station);
     if (priv->dtype == S7MEM_TIME)
     {
-        int i;
+        unsigned int i;
         unsigned char* p = record->bptr;
         unsigned char bcd;
         for (i=0; i < record->nelm; i++)
