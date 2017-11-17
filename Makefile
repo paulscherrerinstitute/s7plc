@@ -8,11 +8,8 @@ include $(TOP)/config/RULES_ARCHS
 
 else
 
-# R3.14
+# R3.14+
 include $(TOP)/configure/CONFIG
-
-# Allow for debugging
-HOST_OPT = NO
 
 # Want local functions non-static? Define DEBUG 
 #CFLAGS += -DDEBUG
@@ -20,14 +17,14 @@ HOST_OPT = NO
 # library
 
 LIBRARY = s7plc
-LIB_SRCS += s7plc_registerRecordDeviceDriver.cpp
 LIB_SRCS += drvS7plc.c
 LIB_SRCS += devS7plc.c
-LIB_LIBS += $(EPICS_BASE_IOC_LIBS)
 HTMLS += s7plc.html
 INSTALL_DBDS += $(INSTALL_DBD)/s7plc.dbd
-# stand alone application program
+# Uncomment this if you want a dynamically loadable module
+#LIB_SRCS += s7plc_registerRecordDeviceDriver.cpp
 
+# stand alone application program
 PROD_DEFAULT = s7plcApp
 PROD_vxWorks = -nil-
 s7plcApp_SRCS += s7plcApp_registerRecordDeviceDriver.cpp
