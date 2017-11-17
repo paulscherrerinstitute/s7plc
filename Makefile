@@ -38,11 +38,11 @@ s7plcApp_DBD += base.dbd
 s7plcApp_DBD += s7plc.dbd
 DBD += s7plcApp.dbd
 
-
 include $(TOP)/configure/RULES
 
 s7plcApp.dbd.d: s7plc.dbd
 
+vpath %.dbd ..
 s7plc.dbd: s7plcBase.dbd s7plcCalcout.dbd s7plcReg.dbd
 	cat $^ > $@
 endif
