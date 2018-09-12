@@ -12,7 +12,6 @@
 #include <errlog.h>
 
 #include <epicsVersion.h>
-#include <drvS7plc.h>
 
 #include <biRecord.h>
 #include <boRecord.h>
@@ -30,16 +29,18 @@
 #include <aaiRecord.h>
 #include <aaoRecord.h>
 
-#if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
-/* R3.14 */
+#ifdef BASE_VERSION
+#define EPICS_3_13
+#include "compat3_13.h"
+#else
 #include <postfix.h>
 #include <calcoutRecord.h>
 #include <cantProceed.h>
 #include <epicsExport.h>
-#else
-/* R3.13 */
-#include "compat3_13.h"
 #endif
+
+#include "drvS7plc.h"
+
 #define isnan(x) ((x)!=(x))
 
 /* suppress compiler warning concerning long long with __extension__ */
@@ -393,7 +394,7 @@ struct devsup s7plcAao =
 epicsExportAddress(dset, s7plcAao);
 
 /* calcout **********************************************************/
-#if ((EPICS_VERSION==3 && EPICS_REVISION>=14) || EPICS_VERSION>3)
+#ifndef EPICS_3_13
 
 STATIC long s7plcInitRecordCalcout(calcoutRecord *);
 STATIC long s7plcWriteCalcout(calcoutRecord *);
@@ -2477,8 +2478,8 @@ STATIC long s7plcWriteAao(aaoRecord *record)
     return status;
 }
 
-#if (EPICS_REVISION>=14)
 /* calcout **********************************************************/
+#ifndef EPICS_3_13
 
 STATIC long s7plcInitRecordCalcout(calcoutRecord *record)
 {

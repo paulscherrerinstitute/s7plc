@@ -14,9 +14,6 @@
 #define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #else
 #include <fcntl.h>
-#endif
-
-#ifdef __rtems__
 #include <sys/select.h>
 #endif
 
@@ -25,10 +22,10 @@
 #include <errlog.h>
 #include <epicsVersion.h>
 
-#include "drvS7plc.h"
-
-#ifndef BASE_VERSION
-/* R3.14 */
+#ifdef BASE_VERSION
+#define EPICS_3_13
+#include "compat3_13.h"
+#else
 #include <osiSock.h>
 #include <dbAccess.h>
 #include <iocsh.h>
@@ -39,10 +36,9 @@
 #include <epicsEvent.h>
 #include <epicsTime.h>
 #include <epicsExport.h>
-#else
-/* R3.13 */
-#include "compat3_13.h"
 #endif
+
+#include "drvS7plc.h"
 
 #define CONNECT_TIMEOUT   5.0  /* connect timeout [s] */
 #define RECONNECT_DELAY  30.0  /* delay before reconnect [s] */
@@ -312,7 +308,7 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
     return 0;
 }
 
-#if (EPICS_REVISION>=14)
+#ifndef EPICS_3_13
 static const iocshArg s7plcConfigureArg0 = { "name", iocshArgString };
 static const iocshArg s7plcConfigureArg1 = { "IPaddr", iocshArgString };
 static const iocshArg s7plcConfigureArg2 = { "IPport", iocshArgInt };
