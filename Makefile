@@ -1,4 +1,4 @@
-TOP=..
+TOP=.
 
 ifeq ($(wildcard $(TOP)/configure),)
 
@@ -13,6 +13,9 @@ include $(TOP)/configure/CONFIG
 
 # Want local functions non-static? Define DEBUG 
 #CFLAGS += -DDEBUG
+
+# Suppress warning in EPICS 7
+USR_CPPFLAGS += -DUSE_TYPED_RSET
 
 # library
 
