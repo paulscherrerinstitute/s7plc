@@ -479,22 +479,22 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     struct {char* name; int dlen; epicsType type;} datatypes [] =
     {
         { "INT8",     1, epicsInt8T    },
-        
+
         { "UINT8",    1, epicsUInt8T   },
         { "UNSIGN8",  1, epicsUInt8T   },
         { "BYTE",     1, epicsUInt8T   },
         { "CHAR",     1, epicsUInt8T   },
-        
+
         { "INT16",    2, epicsInt16T   },
         { "SHORT",    2, epicsInt16T   },
-        
+
         { "UINT16",   2, epicsUInt16T  },
         { "UNSIGN16", 2, epicsUInt16T  },
         { "WORD",     2, epicsUInt16T  },
-        
+
         { "INT32",    4, epicsInt32T   },
         { "LONG",     4, epicsInt32T   },
-        
+
         { "UINT32",   4, epicsUInt32T  },
         { "UNSIGN32", 4, epicsUInt32T  },
         { "DWORD",    4, epicsUInt32T  },
@@ -560,7 +560,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     priv->bit = 0;
     priv->hwLow = 0;
     priv->hwHigh = 0;
-    
+
     /* allow whitespaces before parameter for device support */
     while ((separator == '\t') || (separator == ' '))
         separator = *p++;
@@ -568,7 +568,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     /* handle parameter for device support if present */
     nchar = 0;
     if (separator != '\'') p--; /* quote is optional*/
-    
+
     /* parse parameters */
     while (p && *p)
     {
@@ -579,8 +579,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                 p++;
                 break;
             case 'T': /* T=<datatype> */
-                p+=2; 
-                
+                p+=2;
                 if (strncmp(p,"STRING",6) == 0)
                 {
                     priv->dtype = epicsStringT;
@@ -635,14 +634,14 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                 return S_drv_badParam;
         }
     }
-    
+
     /* for T=STRING L=... means length, not low */
     if (priv->dtype == epicsStringT && priv->hwLow)
     {
         priv->dlen = priv->hwLow;
         priv->hwLow = 0;
     }
-    
+
     /* check if bit number is in range */
     if (priv->bit && priv->bit >= priv->dlen*8)
     {
@@ -651,7 +650,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
             recordName, priv->bit, priv->dlen*8-1);
         return S_drv_badParam;
     }
-    
+
     /* get default values for L and H if user did'n define them */
     switch (priv->dtype)
     {
@@ -689,8 +688,8 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                     "s7plcIoParse %s: L or H makes"
                     " no sense with this data type\n",
                     recordName);
-            } 
-            break;   
+            }
+            break;
     }
     s7plcDebugLog(1, "s7plcIoParse %s: dlen=%d\n",recordName, priv->dlen);
     s7plcDebugLog(1, "s7plcIoParse %s: B=%d\n",   recordName, priv->bit);
@@ -704,7 +703,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
             recordName);
         return status;
     }
-    
+
     return 0;
 }
 
@@ -2023,7 +2022,7 @@ STATIC long s7plcSpecialLinconvAo(aoRecord *record, int after)
     if (after) {
         hwSpan = priv->hwHigh - priv->hwLow;
         record->eslo = (record->eguf - record->egul) / hwSpan;
-        record->eoff = 
+        record->eoff =
             (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
             / hwSpan;
     }
@@ -2189,7 +2188,7 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
 {
     S7memPrivate_t *priv;
     int status;
-    
+
     if (iolink->type != INST_IO) {
         recGblRecordError(S_db_badField, record,
             "s7plcInitRecordArray: illegal INP field");
@@ -2266,7 +2265,7 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
                 status = S_db_badField;
             }
             break;
-        case epicsStringT:    
+        case epicsStringT:
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 if (priv->dlen == 0 || priv->dlen > nelm) priv->dlen = nelm;
@@ -2326,7 +2325,6 @@ static unsigned char bcd2d(unsigned char bcd)
 static unsigned char d2bcd(unsigned char dec)
 {
     return (dec/10) << 4 | dec%10;
-    
 }
 
 static long s7plcReadRecordArray(dbCommon *record, int nelm, void* bptr)
@@ -2389,7 +2387,7 @@ STATIC long s7plcInitRecordAai(aaiRecord *record)
     /* aai does not allocate buffer memory */
     if (status == 0)
     {
-        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;   
+        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
         record->bptr = calloc(record->nelm, priv->dlen);
     }
     return status;
@@ -2410,7 +2408,7 @@ STATIC long s7plcInitRecordAao(aaoRecord *record)
     /* aai does not allocate buffer memory */
     if (status == 0)
     {
-        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;   
+        S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
         record->bptr = calloc(record->nelm, priv->dlen);
     }
     return status;

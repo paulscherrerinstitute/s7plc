@@ -43,7 +43,7 @@
 #define CONNECT_TIMEOUT   5.0  /* connect timeout [s] */
 #define RECONNECT_DELAY  30.0  /* delay before reconnect [s] */
 
-STATIC long s7plcIoReport(int level); 
+STATIC long s7plcIoReport(int level);
 STATIC long s7plcInit();
 void s7plcMain ();
 STATIC void s7plcSendThread(s7plcStation* station);
@@ -184,11 +184,11 @@ STATIC long s7plcInit()
 {
     s7plcStation* station;
     char threadname[20];
-    
+
     if (!s7plcStationList) return 0;
 
     for (station = s7plcStationList; station; station=station->next)
-    {            
+    {
         sprintf (threadname, "%.15sR", station->name);
         s7plcDebugLog(1,
             "s7plcMain %s: starting recv thread %s\n",
@@ -240,7 +240,7 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
 {
     s7plcStation* station;
     s7plcStation** pstation;
-    
+
     union {short s; char c [sizeof(short)];} u;
     u.s=1;
     bigEndianIoc = !u.c[0];
@@ -250,7 +250,7 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
             "s7plcConfigure: missing name\n");
         return -1;
     }
-    
+
     if (!IPaddr || !IPaddr[0])
     {
         IPaddr = NULL;
@@ -264,10 +264,10 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
             "s7plcConfigure: missing IP port\n");
         return -1;
     }
-        
+
     /* find last station in list */
     for (pstation = &s7plcStationList; *pstation; pstation = &(*pstation)->next);
-    
+
     station = callocMustSucceed(1,
         sizeof(s7plcStation) + inSize + outSize + strlen(name)+1, "s7plcConfigure");
     station->next = NULL;
@@ -334,7 +334,7 @@ static void s7plcConfigureFunc (const iocshArgBuf *args)
         args[0].sval, args[1].sval, args[2].ival,
         args[3].ival, args[4].ival, args[5].ival,
         args[6].ival, args[7].ival);
-        
+
     if (status) exit(1);
 }
 
@@ -392,7 +392,7 @@ int s7plcReadArray(
     }
     if (offset+nelem*dlen > station->inSize)
     {
-       errlogSevPrintf(errlogMajor, 
+       errlogSevPrintf(errlogMajor,
         "s7plcRead %s/%u: too many elements (%u)\n",
         station->name, offset, nelem);
        return S_drv_badParam;
@@ -414,7 +414,7 @@ int s7plcReadArray(
             s7plcDebugLog(5, " %02x", byte);
         }
         s7plcDebugLog(5, "\n");
-    }    
+    }
     epicsMutexUnlock(station->mutex);
     if (station->sockFd == -1) return S_drv_noConn;
     return S_drv_OK;
@@ -492,7 +492,7 @@ int s7plcWriteMaskedArray(
         }
         s7plcDebugLog(5, "\n");
         station->outputChanged=1;
-    }    
+    }
     epicsMutexUnlock(station->mutex);
     if (station->sockFd == -1) return S_drv_noConn;
     return S_drv_OK;
@@ -517,7 +517,7 @@ STATIC void s7plcSendThread(s7plcStation* station)
             {
                 epicsMutexMustLock(station->mutex);
                 memcpy(sendBuf, station->outBuffer, station->outSize);
-                station->outputChanged = 0; 
+                station->outputChanged = 0;
                 epicsMutexUnlock(station->mutex);
 
                 if (station->sockFd != -1)
@@ -568,7 +568,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         int received;
         int status;
         epicsTimeStamp start, end;
-        
+
         if (station->sockFd == -1)
         {
             /* not connected */
@@ -811,7 +811,7 @@ STATIC int s7plcConnect(s7plcStation* station)
     s7plcErrorLog(
         "s7plcConnect %s: connected to %s:%d\n",
         station->name, station->server, station->serverPort);
-    
+
     station->sockFd = sockFd;
     return 0;
 }
@@ -858,7 +858,7 @@ int s7plcGetAddr(s7plcStation* station, char* addr)
 int s7plcSetAddr(s7plcStation* station, const char* addr)
 {
     char* c;
-    
+
     s7plcDebugLog(1, "s7plcSetAddr %s\n", addr);
     epicsMutexMustLock(station->mutex);
     s7plcCloseConnection(station);

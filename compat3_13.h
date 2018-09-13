@@ -37,10 +37,10 @@
 *   Don't do this (changing arg):  epicsTimerStartDelay(*ptimer++, delay);
 *
 * You can take the address of
-*   epicsMutexUnlock   
-*   epicsMutexDestroy  
-*   epicsEventSignal   
-*   epicsEventDestroy 
+*   epicsMutexUnlock
+*   epicsMutexDestroy
+*   epicsEventSignal
+*   epicsEventDestroy
 *
 * You have been warned.
 * Dirk Zimoch, March 2005
@@ -74,7 +74,7 @@
 #define epicsThreadCreate(name, pri, stack, func, args) \
     (void*)taskSpawn((name), 255-(pri)*255/99, VX_FP_TASK, (stack), (FUNCPTR)(func), (int)(args), \
     0,0,0,0,0,0,0,0,0)
-    
+
 #define epicsThreadSleep(sec) taskDelay((sec)*sysClkRateGet())
 #define epicsThreadIsSuspended(t) (taskIdVerify((int)(t)) || taskIsSuspended((int)(t)))
 #define epicsThreadGetStackSize(stack) (stack)

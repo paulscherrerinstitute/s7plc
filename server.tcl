@@ -16,7 +16,7 @@ set updata [string repeat "\0" $upsize]
 
 proc makeGUI {{parent {}}} {
     global upsize updata downsize downdata
-    
+
     # create up buffer (where user can write to)
     set maxrow [expr ($upsize-1)/16+1]
     set f [frame $parent.input]
@@ -47,7 +47,7 @@ proc makeGUI {{parent {}}} {
         }
         $e icursor 0
     }
-    
+
     # create down buffer (where values are displayed)
     set maxrow [expr ($downsize-1)/16+1]
     set baserow $row
@@ -162,9 +162,7 @@ makeGUI
 set serversocket [socket -server connect 2000]
 
 proc connect {sock addr port} {
- 
   puts "Connect to : $addr , $port"
-  
   fconfigure $sock -translation binary -blocking 0 -buffering none
   fileevent $sock readable "receiveHandler $sock"
   writeLoop $sock
@@ -192,7 +190,7 @@ proc writeLoop {sock} {
     global updata
     if [catch {puts -nonewline $sock $updata}] return
     set l [string length $updata]
-   puts "$l bytes data sent"
+    puts "$l bytes data sent"
 #    for {set i 0} {$i < $l} {incr i} {
 #        scan [string index $updata $i] "%c" c
 #        puts -nonewline [format "%02x " $c]
@@ -200,4 +198,4 @@ proc writeLoop {sock} {
 #    puts ""
     after 1000 writeLoop $sock
 }
-    
+

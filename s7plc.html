@@ -155,10 +155,10 @@ s7plcConfigure (<i>PLCname</i>, <i>IPaddr</i>, <i>port</i>, <i>inSize</i>,
 </p>
 <p>
 <code><i>PLCname</i></code> is an arbitrary symbolic name for the PLC running
-a server TCP socket on <code><i>IPaddr</i>:<i>port</i></code>. 
+a server TCP socket on <code><i>IPaddr</i>:<i>port</i></code>.
 The records reference the PLC with this name in their <code>INP</code> or
 <code>OUT</code> link. <code><i>PLCname</i></code> must not contain the
-slash character (<code>/</code>). 
+slash character (<code>/</code>).
 </p>
 <p>
 <code><i>inSize</i></code> and <code><i>outSize</i></code> are the data block
@@ -415,7 +415,7 @@ on <code>T</code> (see table <a href="#type">above</a>).
 If <code>T</code> is an integer type, the PV is read into
 <code>RVAL</code>. If <code>LINR</code> is set to <code>"LINEAR"</code>,
 then the record support converts <code>RVAL</code> to <code>VAL</code>
-so that <code>RVAL=L</code> converts to <code>VAL=EGUL</code> and 
+so that <code>RVAL=L</code> converts to <code>VAL=EGUL</code> and
 <code>RVAL=H</code> converts to <code>VAL=EGUF</code>.
 </p>
 <p>
@@ -436,7 +436,7 @@ The device support emulates scaling and smoothing which is otherwise done
 by the record support during conversion.
 </p>
 <p>
-<code>VAL=(<i>PV</i>*ASLO+AOFF)*(1-SMOO)+VAL<sub>old</sub>*SMOO</code> 
+<code>VAL=(<i>PV</i>*ASLO+AOFF)*(1-SMOO)+VAL<sub>old</sub>*SMOO</code>
 </p>
 <p>
 <code>T=STRING</code> is not valid for ai records.
@@ -963,7 +963,7 @@ depending on <code>DOPT</code>) is written to the PV. If
 <code>T</code> is an integer type, the value is truncated to an
 integer and compared to <code>L</code> and <code>H</code>.
 If <code>OVAL</code> is lower than <code>L</code> or higher than
-<code>H</code>, it is truncated to the nearest limit. 
+<code>H</code>, it is truncated to the nearest limit.
 </p>
 <p>
 If <code>T=FLOAT</code> or <code>T=DOUBLE</code>,

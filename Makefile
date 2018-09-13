@@ -11,7 +11,7 @@ else
 # R3.14+
 include $(TOP)/configure/CONFIG
 
-# Want local functions non-static? Define DEBUG 
+# Want local functions non-static? Define DEBUG
 #CFLAGS += -DDEBUG
 
 # Suppress warning in EPICS 7

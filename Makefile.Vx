@@ -4,7 +4,7 @@ TOP=../..
 
 include $(TOP)/config/CONFIG_APP
 
-# Want local functions non-static? Define DEBUG 
+# Want local functions non-static? Define DEBUG
 #CFLAGS += -DDEBUG
 
 # Any warning is a bug
