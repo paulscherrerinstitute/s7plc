@@ -2,7 +2,7 @@
 # Run "gnumake clean uninstall install" in the application
 # top directory each time this file is changed.
 #
-# NOTE: The build does not check dependancies on files
+# NOTE: The build does not check dependencies on files
 # external to this application. Thus you should run
 # "gnumake clean uninstall install" in the top directory
 # each time EPICS_BASE, SNCSEQ, or any other external
