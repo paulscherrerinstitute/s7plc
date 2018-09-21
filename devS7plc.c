@@ -2274,21 +2274,21 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
             break;
         case epicsInt8T:
         case epicsUInt8T:
-            if ((ftvl != DBF_CHAR) && (ftvl == DBF_UCHAR))
+            if ((ftvl != DBF_CHAR) && (ftvl != DBF_UCHAR))
             {
                 status = S_db_badField;
             }
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            if ((ftvl != DBF_SHORT) && (ftvl == DBF_USHORT))
+            if ((ftvl != DBF_SHORT) && (ftvl != DBF_USHORT))
             {
                 status = S_db_badField;
             }
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            if ((ftvl != DBF_LONG) && (ftvl == DBF_ULONG))
+            if ((ftvl != DBF_LONG) && (ftvl != DBF_ULONG))
             {
                 status = S_db_badField;
             }
