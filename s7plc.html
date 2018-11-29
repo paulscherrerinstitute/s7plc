@@ -840,12 +840,13 @@ valid for longout records.
 </pre>
 <p>
 Default and only valid type is <code>T=STRING</code>.
-Default length is <code>L=40</code>.
+Default (and maximum) length is <code>L=40</code>.
 </p>
 <p>
 <code>L</code> bytes are read from the PV to <code>VAL</code> and null
-terminated. Thus, the effective string length is maximal
-<code>L</code>-1 bytes.
+terminated. Because the stringin record uses a fixed size, 40-byte long
+buffer if <code>L&lt;40</code>, the effective string length is <code>L</code>
+bytes.  If <code>L=40</code>, the effective string length is 39 bytes.
 </p>
 
 <a name="stringout"></a>
