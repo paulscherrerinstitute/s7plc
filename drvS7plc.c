@@ -45,7 +45,7 @@
 
 STATIC long s7plcIoReport(int level);
 STATIC long s7plcInit();
-void s7plcMain ();
+void s7plcMain();
 STATIC void s7plcSendThread(s7plcStation* station);
 STATIC void s7plcReceiveThread(s7plcStation* station);
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
@@ -338,7 +338,7 @@ static void s7plcConfigureFunc (const iocshArgBuf *args)
     if (status) exit(1);
 }
 
-static void s7plcRegister ()
+static void s7plcRegister()
 {
     iocshRegister(&s7plcConfigureDef, s7plcConfigureFunc);
 }
@@ -823,10 +823,10 @@ STATIC void s7plcCloseConnection(s7plcStation* station)
     epicsMutexMustLock(station->mutex);
     if (station->sockFd>0)
     {
-        if (shutdown(station->sockFd, 2) < 0)
+        if (shutdown(station->sockFd, SHUT_RDWR) && errno != ENOTCONN)
         {
             s7plcErrorLog(
-                "s7plcCloseConnection %s: shutdown(%d, 2) failed (ignored): %s\n",
+                "s7plcCloseConnection %s: shutdown(%d, SHUT_RDWR) failed (ignored): %s\n",
                 station->name,
                 station->sockFd, strerror(errno));
         }
