@@ -159,6 +159,9 @@ typedef struct epicsTimerForC {WDOG_ID wd; FUNCPTR cb; int p;} *epicsTimerId;
     (((psin_addr)->s_addr = hostGetByName(name)) != -1 ? 0 : \
      ((psin_addr)->s_addr = inet_addr(name)) != -1 ? 0 : -1)
 #endif
+#ifndef SHUT_RDWR
+#define SHUT_RDWR 2
+#endif
 
 /* epicsTime */
 #include <tsDefs.h>
