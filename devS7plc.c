@@ -2069,6 +2069,9 @@ STATIC long s7plcInitRecordStringin(stringinRecord *record)
             record->name, priv->dlen, (int)sizeof(record->val));
         priv->dlen = sizeof(record->val);
     }
+    if (priv->dlen == sizeof(record->val))
+        /* don't transmit the last byte, it will be zeroed out */
+        priv->dlen = sizeof(record->val) - 1;
     record->dpvt = priv;
     return 0;
 }
@@ -2086,16 +2089,11 @@ STATIC long s7plcReadStringin(stringinRecord *record)
         return -1;
     }
     assert(priv->station);
-    memset(record->val, 0, priv->dlen);
+    memset(record->val, 0, sizeof(record->val));
     status = s7plcReadArray(priv->station, priv->offs,
                 1, priv->dlen, record->val);
     s7plcDebugLog(3, "stringin %s: read array of %d 8bit values\n",
         record->name, priv->dlen);
-    if (record->val[priv->dlen] && !memchr(record->val, 0, priv->dlen))
-    {
-        /* truncate oversize string */
-        record->val[priv->dlen] = 0;
-    }
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
