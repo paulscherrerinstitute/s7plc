@@ -10,6 +10,7 @@
 #include <devSup.h>
 #include <devLib.h>
 #include <errlog.h>
+#include <menuFtype.h>
 
 #include <epicsVersion.h>
 
@@ -476,39 +477,45 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     int nchar, i;
     int status = 0;
 
-    struct {char* name; int dlen; epicsType type;} datatypes [] =
+    struct {char* name; int dlen; menuFtype type;} datatypes [] =
     {
-        { "INT8",     1, epicsInt8T    },
+        { "INT8",     1, menuFtypeCHAR   },
 
-        { "UINT8",    1, epicsUInt8T   },
-        { "UNSIGN8",  1, epicsUInt8T   },
-        { "BYTE",     1, epicsUInt8T   },
-        { "CHAR",     1, epicsUInt8T   },
+        { "UINT8",    1, menuFtypeUCHAR  },
+        { "UNSIGN8",  1, menuFtypeUCHAR  },
+        { "BYTE",     1, menuFtypeUCHAR  },
+        { "CHAR",     1, menuFtypeUCHAR  },
 
-        { "INT16",    2, epicsInt16T   },
-        { "SHORT",    2, epicsInt16T   },
+        { "INT16",    2, menuFtypeSHORT  },
+        { "SHORT",    2, menuFtypeSHORT  },
 
-        { "UINT16",   2, epicsUInt16T  },
-        { "UNSIGN16", 2, epicsUInt16T  },
-        { "WORD",     2, epicsUInt16T  },
+        { "UINT16",   2, menuFtypeUSHORT },
+        { "UNSIGN16", 2, menuFtypeUSHORT },
+        { "WORD",     2, menuFtypeUSHORT },
 
-        { "INT32",    4, epicsInt32T   },
-        { "LONG",     4, epicsInt32T   },
+        { "INT32",    4, menuFtypeLONG   },
+        { "LONG",     4, menuFtypeLONG   },
 
-        { "UINT32",   4, epicsUInt32T  },
-        { "UNSIGN32", 4, epicsUInt32T  },
-        { "DWORD",    4, epicsUInt32T  },
+        { "UINT32",   4, menuFtypeULONG  },
+        { "UNSIGN32", 4, menuFtypeULONG  },
+        { "DWORD",    4, menuFtypeULONG  },
 
-        { "REAL32",   4, epicsFloat32T },
-        { "FLOAT32",  4, epicsFloat32T },
-        { "FLOAT",    4, epicsFloat32T },
+        { "INT64",    8, menuFtypeINT64  },
+        { "LONGLONG", 8, menuFtypeINT64  },
 
-        { "REAL64",   8, epicsFloat64T },
-        { "FLOAT64",  8, epicsFloat64T },
-        { "DOUBLE",   8, epicsFloat64T },
+        { "UINT64",   8, menuFtypeUINT64 },
+        { "UNSIGN64", 8, menuFtypeUINT64 },
 
-        { "TIME",     1, S7MEM_TIME    },
-        { "BCD",      1, S7MEM_TIME    }
+        { "REAL32",   4, menuFtypeFLOAT  },
+        { "FLOAT32",  4, menuFtypeFLOAT  },
+        { "FLOAT",    4, menuFtypeFLOAT  },
+
+        { "REAL64",   8, menuFtypeDOUBLE },
+        { "FLOAT64",  8, menuFtypeDOUBLE },
+        { "DOUBLE",   8, menuFtypeDOUBLE },
+
+        { "TIME",     1, S7MEM_TIME      },
+        { "BCD",      1, S7MEM_TIME      }
     };
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
@@ -554,7 +561,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     /* set default values for parameters */
     if (!priv->dtype && !priv->dlen)
     {
-        priv->dtype = epicsInt16T;
+        priv->dtype = menuFtypeSHORT;
         priv->dlen = 2;
     }
     priv->bit = 0;
@@ -582,7 +589,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                 p+=2;
                 if (strncmp(p,"STRING",6) == 0)
                 {
-                    priv->dtype = epicsStringT;
+                    priv->dtype = menuFtypeSTRING;
                     p += 6;
                 }
                 else
@@ -636,7 +643,7 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     }
 
     /* for T=STRING L=... means length, not low */
-    if (priv->dtype == epicsStringT && priv->hwLow)
+    if (priv->dtype == menuFtypeSTRING && priv->hwLow)
     {
         priv->dlen = priv->hwLow;
         priv->hwLow = 0;
@@ -654,31 +661,31 @@ STATIC int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     /* get default values for L and H if user did'n define them */
     switch (priv->dtype)
     {
-        case epicsUInt8T:
+        case menuFtypeUCHAR:
             if (priv->hwHigh > 0xFF) status = S_drv_badParam;
             if (!priv->hwHigh) priv->hwLow = 0x00;
             if (!priv->hwHigh) priv->hwHigh = 0xFF;
             break;
-        case epicsUInt16T:
+        case menuFtypeUSHORT:
             if (priv->hwHigh > 0xFFFF) status = S_drv_badParam;
             if (!priv->hwHigh) priv->hwLow = 0x0000;
             if (!priv->hwHigh) priv->hwHigh = 0xFFFF;
             break;
-        case epicsUInt32T:
+        case menuFtypeULONG:
             if (!priv->hwHigh) priv->hwLow = 0x00000000;
             if (!priv->hwHigh) priv->hwHigh = 0xFFFFFFFF;
             break;
-        case epicsInt8T:
+        case menuFtypeCHAR:
             if (priv->hwHigh > 0x7F) status = S_drv_badParam;
             if (!priv->hwHigh) priv->hwLow = 0xFFFFFF81;
             if (!priv->hwHigh) priv->hwHigh = 0x0000007F;
             break;
-        case epicsInt16T:
+        case menuFtypeSHORT:
             if (priv->hwHigh > 0x7FFF) status = S_drv_badParam;
             if (!priv->hwHigh) priv->hwLow = 0xFFFF8001;
             if (!priv->hwHigh) priv->hwHigh = 0x00007FFF;
             break;
-        case epicsInt32T:
+        case menuFtypeLONG:
             if (!priv->hwHigh) priv->hwLow = 0x80000001;
             if (!priv->hwHigh) priv->hwHigh = 0x7FFFFFFF;
             break;
@@ -833,12 +840,12 @@ STATIC long s7plcInitRecordBi(biRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -869,24 +876,24 @@ STATIC long s7plcReadBi(biRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "bi %s: read 8bit %02x\n",
                 record->name, rval8);
             rval32 = rval8;
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "bi %s: read 16bit %04x\n",
                 record->name, rval16);
             rval32 = rval16;
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "bi %s: read 32bit %04x\n",
@@ -940,12 +947,12 @@ STATIC long s7plcInitRecordBo(boRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -976,8 +983,8 @@ STATIC long s7plcWriteBo(boRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             rval8 = record->rval;
             mask8 = record->mask;
             s7plcDebugLog(2, "bo %s: write 8bit %02x mask %02x\n",
@@ -985,8 +992,8 @@ STATIC long s7plcWriteBo(boRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             rval16 = record->rval;
             mask16 = record->mask;
             s7plcDebugLog(2, "bo %s: write 16bit %04x mask %04x\n",
@@ -994,8 +1001,8 @@ STATIC long s7plcWriteBo(boRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             rval32 = record->rval;
             mask32 = record->mask;
             s7plcDebugLog(2, "bo %s: write 32bit %08x mask %08x\n",
@@ -1048,12 +1055,12 @@ STATIC long s7plcInitRecordMbbi(mbbiRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1084,24 +1091,24 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "mbbi %s: read 8bit %02x\n",
                 record->name, rval8);
             rval32 = rval8;
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "mbbi %s: read 16bit %04x\n",
                 record->name, rval16);
             rval32 = rval16;
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "mbbi %s: read 32bit %04x\n",
@@ -1155,12 +1162,12 @@ STATIC long s7plcInitRecordMbbo(mbboRecord *record)
     if (record->shft > 0) record->mask <<= record->shft;
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1190,8 +1197,8 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             rval8 = record->rval;
             mask8 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 8bit %02x mask %02x\n",
@@ -1199,8 +1206,8 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             rval16 = record->rval;
             mask16 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 16bit %04x mask %04x\n",
@@ -1208,8 +1215,8 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             rval32 = record->rval;
             mask32 = record->mask;
             s7plcDebugLog(2, "mbbo %s: write 32bit %08x mask %08x\n",
@@ -1263,12 +1270,12 @@ STATIC long s7plcInitRecordMbbiDirect(mbbiDirectRecord *record)
     if (record->shft > 0) record->mask <<= record->shft;
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1298,24 +1305,24 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &rval8);
             s7plcDebugLog(3, "mbbiDirect %s: read 8bit %02x\n",
                 record->name, rval8);
             rval32 = rval8;
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &rval16);
             s7plcDebugLog(3, "mbbiDirect %s: read 16bit %04x\n",
                 record->name, rval16);
             rval32 = rval16;
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &rval32);
             s7plcDebugLog(3, "mbbiDirect %s: read 32bit %08x\n",
@@ -1369,12 +1376,12 @@ STATIC long s7plcInitRecordMbboDirect(mbboDirectRecord *record)
     if (record->shft > 0) record->mask <<= record->shft;
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1404,8 +1411,8 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             rval8 = record->rval;
             mask8 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 8bit %02x mask %02x\n",
@@ -1413,8 +1420,8 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 1, &rval8, &mask8);
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             rval16 = record->rval;
             mask16 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 16bit %04x mask %04x\n",
@@ -1422,8 +1429,8 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 2, &rval16, &mask16);
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             rval32 = record->rval;
             mask32 = record->mask;
             s7plcDebugLog(2, "mbboDirect %s: write 32bit %08x mask %08x\n",
@@ -1475,12 +1482,12 @@ STATIC long s7plcInitRecordLongin(longinRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1513,42 +1520,42 @@ STATIC long s7plcReadLongin(longinRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
+        case menuFtypeCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &sval8);
             s7plcDebugLog(3, "longin %s: read 8bit %02x\n",
                 record->name, sval8);
             record->val = sval8;
             break;
-        case epicsUInt8T:
+        case menuFtypeUCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &uval8);
             s7plcDebugLog(3, "longin %s: read 8bit %02x\n",
                 record->name, uval8);
             record->val = uval8;
             break;
-        case epicsInt16T:
+        case menuFtypeSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &sval16);
             s7plcDebugLog(3, "longin %s: read 16bit %04x\n",
                 record->name, sval16);
             record->val = sval16;
             break;
-        case epicsUInt16T:
+        case menuFtypeUSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &uval16);
             s7plcDebugLog(3, "longin %s: read 16bit %04x\n",
                 record->name, uval16);
             record->val = uval16;
             break;
-        case epicsInt32T:
+        case menuFtypeLONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &sval32);
             s7plcDebugLog(3, "longin %s: read 32bit %04x\n",
                 record->name, sval32);
             record->val = sval32;
             break;
-        case epicsUInt32T:
+        case menuFtypeULONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &uval32);
             s7plcDebugLog(3, "longin %s: read 32bit %04x\n",
@@ -1601,12 +1608,12 @@ STATIC long s7plcInitRecordLongout(longoutRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1636,24 +1643,24 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             rval8 = record->val;
             s7plcDebugLog(2, "longout %s: write 8bit %02x\n",
                 record->name, rval8);
             status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             rval16 = record->val;
             s7plcDebugLog(2, "longout %s: write 16bit %04x\n",
                 record->name, rval16);
             status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             rval32 = record->val;
             s7plcDebugLog(2, "longout %s: write 32bit %08x\n",
                 record->name, rval32);
@@ -1704,14 +1711,14 @@ STATIC long s7plcInitRecordAi(aiRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
-        case epicsFloat32T:
-        case epicsFloat64T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
+        case menuFtypeFLOAT:
+        case menuFtypeDOUBLE:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1746,42 +1753,42 @@ STATIC long s7plcReadAi(aiRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
+        case menuFtypeCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &sval8);
             s7plcDebugLog(3, "ai %s: read 8bit %02x\n",
                 record->name, sval8);
             record->rval = sval8;
             break;
-        case epicsUInt8T:
+        case menuFtypeUCHAR:
             status = s7plcRead(priv->station, priv->offs,
                 1, &uval8);
             s7plcDebugLog(3, "ai %s: read 8bit %02x\n",
                 record->name, uval8);
             record->rval = uval8;
             break;
-        case epicsInt16T:
+        case menuFtypeSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &sval16);
             s7plcDebugLog(3, "ai %s: read 16bit %04x\n",
                 record->name, sval16);
             record->rval = sval16;
             break;
-        case epicsUInt16T:
+        case menuFtypeUSHORT:
             status = s7plcRead(priv->station, priv->offs,
                 2, &uval16);
             s7plcDebugLog(3, "ai %s: read 16bit %04x\n",
                 record->name, uval16);
             record->rval = uval16;
             break;
-        case epicsInt32T:
+        case menuFtypeLONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &sval32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x\n",
                 record->name, sval32);
             record->rval = sval32;
             break;
-        case epicsUInt32T:
+        case menuFtypeULONG:
             status = s7plcRead(priv->station, priv->offs,
                 4, &uval32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x\n",
@@ -1793,7 +1800,7 @@ STATIC long s7plcReadAi(aiRecord *record)
                 floatval = TRUE;
             }
             break;
-        case epicsFloat32T:
+        case menuFtypeFLOAT:
             status = s7plcRead(priv->station, priv->offs,
                 4, &val32);
             s7plcDebugLog(3, "ai %s: read 32bit %04x = %g\n",
@@ -1801,7 +1808,7 @@ STATIC long s7plcReadAi(aiRecord *record)
             val64.f = val32.f;
             floatval = TRUE;
             break;
-        case epicsFloat64T:
+        case menuFtypeDOUBLE:
             status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
             s7plcDebugLog(3, "ai %s: read 64bit " CONV64 " = %g\n",
@@ -1884,14 +1891,14 @@ STATIC long s7plcInitRecordAo(aoRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
-        case epicsFloat32T:
-        case epicsFloat64T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
+        case menuFtypeFLOAT:
+        case menuFtypeDOUBLE:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -1925,7 +1932,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
     rval32 = record->rval;
     switch (priv->dtype)
     {
-        case epicsInt8T:
+        case menuFtypeCHAR:
             if (record->rval > priv->hwHigh) rval32 = priv->hwHigh;
             if (record->rval < priv->hwLow) rval32 = priv->hwLow;
             rval8 = rval32;
@@ -1934,7 +1941,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
-        case epicsUInt8T:
+        case menuFtypeUCHAR:
             if (rval32 > (epicsUInt32)priv->hwHigh) rval32 = priv->hwHigh;
             if (rval32 < (epicsUInt32)priv->hwLow) rval32 = priv->hwLow;
             rval8 = rval32;
@@ -1943,7 +1950,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 1, &rval8);
             break;
-        case epicsInt16T:
+        case menuFtypeSHORT:
             if (record->rval > priv->hwHigh) rval32 = priv->hwHigh;
             if (record->rval < priv->hwLow) rval32 = priv->hwLow;
             rval16 = rval32;
@@ -1952,7 +1959,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
-        case epicsUInt16T:
+        case menuFtypeUSHORT:
             if (rval32 > (epicsUInt32)priv->hwHigh) rval32 = priv->hwHigh;
             if (rval32 < (epicsUInt32)priv->hwLow) rval32 = priv->hwLow;
             rval16 = rval32;
@@ -1961,7 +1968,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 2, &rval16);
             break;
-        case epicsInt32T:
+        case menuFtypeLONG:
             if (record->rval > priv->hwHigh) rval32 = priv->hwHigh;
             if (record->rval < priv->hwLow) rval32 = priv->hwLow;
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
@@ -1969,7 +1976,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 4, &rval32);
             break;
-        case epicsUInt32T:
+        case menuFtypeULONG:
             if (rval32 > (epicsUInt32)priv->hwHigh) rval32 = priv->hwHigh;
             if (rval32 < (epicsUInt32)priv->hwLow) rval32 = priv->hwLow;
             s7plcDebugLog(2, "ao %s: write 32bit %08x\n",
@@ -1977,7 +1984,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 4, &rval32);
             break;
-        case epicsFloat32T:
+        case menuFtypeFLOAT:
             /* emulate scaling */
             val32.f = record->oval - record->aoff;
             if (record->aslo != 0) val32.f /= record->aslo;
@@ -1986,7 +1993,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
-        case epicsFloat64T:
+        case menuFtypeDOUBLE:
             /* emulate scaling */
             val64.f = record->oval - record->aoff;
             if (record->aslo != 0) val64.f /= record->aslo;
@@ -2044,7 +2051,7 @@ STATIC long s7plcInitRecordStringin(stringinRecord *record)
     }
     priv = (S7memPrivate_t *)callocMustSucceed(1,
         sizeof(S7memPrivate_t), "s7plcInitRecordStringin");
-    priv->dtype = epicsStringT;
+    priv->dtype = menuFtypeSTRING;
     priv->dlen = sizeof(record->val);
     status = s7plcIoParse(record->name,
         record->inp.value.instio.string, priv);
@@ -2055,7 +2062,7 @@ STATIC long s7plcInitRecordStringin(stringinRecord *record)
         return S_db_badField;
     }
     assert(priv->station);
-    if (priv->dtype != epicsStringT)
+    if (priv->dtype != menuFtypeSTRING)
     {
         errlogSevPrintf(errlogFatal,
             "s7plcInitRecordStringin %s: illegal data type\n",
@@ -2124,7 +2131,7 @@ STATIC long s7plcInitRecordStringout(stringoutRecord *record)
     }
     priv = (S7memPrivate_t *)callocMustSucceed(1,
         sizeof(S7memPrivate_t), "s7plcInitRecordStringout");
-    priv->dtype = epicsStringT;
+    priv->dtype = menuFtypeSTRING;
     priv->dlen = sizeof(record->val);
     status = s7plcIoParse(record->name,
         record->out.value.instio.string, priv);
@@ -2135,7 +2142,7 @@ STATIC long s7plcInitRecordStringout(stringoutRecord *record)
         return S_db_badField;
     }
     assert(priv->station);
-    if (priv->dtype != epicsStringT)
+    if (priv->dtype != menuFtypeSTRING)
     {
         errlogSevPrintf(errlogFatal,
             "s7plcInitRecordStringout %s: illegal data type\n",
@@ -2199,35 +2206,35 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
     switch (ftvl)
     {
         case DBF_CHAR:
-            priv->dtype = epicsInt8T;
+            priv->dtype = menuFtypeCHAR;
             priv->dlen = 1;
             break;
         case DBF_UCHAR:
-            priv->dtype = epicsUInt8T;
+            priv->dtype = menuFtypeUCHAR;
             priv->dlen = 1;
             break;
         case DBF_SHORT:
-            priv->dtype = epicsInt16T;
+            priv->dtype = menuFtypeSHORT;
             priv->dlen = 2;
             break;
         case DBF_USHORT:
-            priv->dtype = epicsUInt16T;
+            priv->dtype = menuFtypeUSHORT;
             priv->dlen = 2;
             break;
         case DBF_LONG:
-            priv->dtype = epicsInt32T;
+            priv->dtype = menuFtypeLONG;
             priv->dlen = 4;
             break;
         case DBF_ULONG:
-            priv->dtype = epicsUInt32T;
+            priv->dtype = menuFtypeULONG;
             priv->dlen = 4;
             break;
         case DBF_FLOAT:
-            priv->dtype = epicsFloat32T;
+            priv->dtype = menuFtypeFLOAT;
             priv->dlen = 4;
             break;
         case DBF_DOUBLE:
-            priv->dtype = epicsFloat64T;
+            priv->dtype = menuFtypeDOUBLE;
             priv->dlen = 8;
             break;
         default:
@@ -2253,41 +2260,41 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
                 status = S_db_badField;
             }
             break;
-        case epicsFloat64T:
+        case menuFtypeDOUBLE:
             if (ftvl != DBF_DOUBLE)
             {
                 status = S_db_badField;
             }
             break;
-        case epicsFloat32T:
+        case menuFtypeFLOAT:
             if (ftvl != DBF_FLOAT)
             {
                 status = S_db_badField;
             }
             break;
-        case epicsStringT:
+        case menuFtypeSTRING:
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 if (priv->dlen == 0 || priv->dlen > nelm) priv->dlen = nelm;
                 break;
             }
             break;
-        case epicsInt8T:
-        case epicsUInt8T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
             if ((ftvl != DBF_CHAR) && (ftvl != DBF_UCHAR))
             {
                 status = S_db_badField;
             }
             break;
-        case epicsInt16T:
-        case epicsUInt16T:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
             if ((ftvl != DBF_SHORT) && (ftvl != DBF_USHORT))
             {
                 status = S_db_badField;
             }
             break;
-        case epicsInt32T:
-        case epicsUInt32T:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
             if ((ftvl != DBF_LONG) && (ftvl != DBF_ULONG))
             {
                 status = S_db_badField;
@@ -2341,7 +2348,7 @@ static long s7plcReadRecordArray(dbCommon *record, int nelm, void* bptr)
         return -1;
     }
     assert(priv->station);
-    if (priv->dtype == epicsStringT)
+    if (priv->dtype == menuFtypeSTRING)
     {
         dlen = 1;
         nelm = priv->dlen;
@@ -2444,7 +2451,7 @@ STATIC long s7plcWriteAao(aaoRecord *record)
     }
     else
     {
-        if (priv->dtype == epicsStringT)
+        if (priv->dtype == menuFtypeSTRING)
         {
             dlen = 1;
             nelm = priv->dlen;
@@ -2502,14 +2509,14 @@ STATIC long s7plcInitRecordCalcout(calcoutRecord *record)
     assert(priv->station);
     switch (priv->dtype)
     {
-        case epicsInt8T:
-        case epicsUInt8T:
-        case epicsInt16T:
-        case epicsUInt16T:
-        case epicsInt32T:
-        case epicsUInt32T:
-        case epicsFloat32T:
-        case epicsFloat64T:
+        case menuFtypeCHAR:
+        case menuFtypeUCHAR:
+        case menuFtypeSHORT:
+        case menuFtypeUSHORT:
+        case menuFtypeLONG:
+        case menuFtypeULONG:
+        case menuFtypeFLOAT:
+        case menuFtypeDOUBLE:
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -2545,7 +2552,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
     val64.f = record->oval;
     switch (priv->dtype)
     {
-        case epicsInt8T:
+        case menuFtypeCHAR:
             sval8 = val64.f;
             if (val64.f > priv->hwHigh) sval8 = priv->hwHigh;
             if (val64.f < priv->hwLow) sval8 = priv->hwLow;
@@ -2554,7 +2561,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 1, &sval8);
             break;
-        case epicsUInt8T:
+        case menuFtypeUCHAR:
             uval8 = val64.f;
             if (val64.f > priv->hwHigh) uval8 = priv->hwHigh;
             if (val64.f < priv->hwLow) uval8 = priv->hwLow;
@@ -2563,7 +2570,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 1, &uval8);
             break;
-        case epicsInt16T:
+        case menuFtypeSHORT:
             sval16 = val64.f;
             if (val64.f > priv->hwHigh) sval16 = priv->hwHigh;
             if (val64.f < priv->hwLow) sval16 = priv->hwLow;
@@ -2572,7 +2579,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 2, &sval16);
             break;
-        case epicsUInt16T:
+        case menuFtypeUSHORT:
             uval16 = val64.f;
             if (val64.f > priv->hwHigh) uval16 = priv->hwHigh;
             if (val64.f < priv->hwLow) uval16 = priv->hwLow;
@@ -2581,7 +2588,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 2, &uval16);
             break;
-        case epicsInt32T:
+        case menuFtypeLONG:
             sval32 = val64.f;
             if (val64.f > priv->hwHigh) sval32 = priv->hwHigh;
             if (val64.f < priv->hwLow) sval32 = priv->hwLow;
@@ -2590,7 +2597,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 4, &sval32);
             break;
-        case epicsUInt32T:
+        case menuFtypeULONG:
             uval32 = val64.f;
             if (val64.f > priv->hwHigh) uval32 = priv->hwHigh;
             if (val64.f < priv->hwLow) uval32 = priv->hwLow;
@@ -2599,14 +2606,14 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
             status = s7plcWrite(priv->station, priv->offs,
                 4, &uval32);
             break;
-        case epicsFloat32T:
+        case menuFtypeFLOAT:
             val32.f = val64.f;
             s7plcDebugLog(2, "calcout %s: write 32bit %08x = %g\n",
                 record->name, val32.i, val32.f);
             status = s7plcWrite(priv->station, priv->offs,
                 4, &val32);
             break;
-        case epicsFloat64T:
+        case menuFtypeDOUBLE:
             s7plcDebugLog(2, "calcout %s: write 64bit " CONV64 " = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
