@@ -1,0 +1,2 @@
+device(int64in,   INST_IO, s7plcInt64in,   "S7plc")
+device(int64out,  INST_IO, s7plcInt64out,  "S7plc")
