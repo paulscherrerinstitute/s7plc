@@ -453,11 +453,13 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
         { "UNSIGN32", 4, menuFtypeULONG  },
         { "DWORD",    4, menuFtypeULONG  },
 
+#ifdef DBR_INT64
         { "INT64",    8, menuFtypeINT64  },
         { "LONGLONG", 8, menuFtypeINT64  },
 
         { "UINT64",   8, menuFtypeUINT64 },
         { "UNSIGN64", 8, menuFtypeUINT64 },
+#endif
 
         { "REAL32",   4, menuFtypeFLOAT  },
         { "FLOAT32",  4, menuFtypeFLOAT  },
@@ -2181,6 +2183,14 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
         case DBF_ULONG:
             priv->dtype = menuFtypeULONG;
             priv->dlen = 4;
+#ifdef DBR_INT64
+        case DBF_INT64:
+            priv->dtype = menuFtypeINT64;
+            priv->dlen = 8;
+        case DBF_UINT64:
+            priv->dtype = menuFtypeUINT64;
+            priv->dlen = 8;
+#endif
             break;
         case DBF_FLOAT:
             priv->dtype = menuFtypeFLOAT;
@@ -2253,6 +2263,15 @@ static long s7plcInitRecordArray(dbCommon* record, struct link* iolink, int ftvl
                 status = S_db_badField;
             }
             break;
+#ifdef DBR_INT64
+        case menuFtypeINT64:
+        case menuFtypeUINT64:
+            if ((ftvl != DBF_INT64) && (ftvl != DBF_UINT64))
+            {
+                status = S_db_badField;
+            }
+            break;
+#endif
         default:
             errlogSevPrintf(errlogFatal,
                 "s7plcInitRecordArray %s: illegal data type\n",
