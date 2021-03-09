@@ -12,6 +12,14 @@ record (int64in, "int64in-2") {
   field (FLNK, "int64out-2")
 }
 
+record (waveform, "wf-int64") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem0/80")
+  field (FTVL, "INT64")
+  field (NELM, "2")
+  field (SCAN, "I/O Intr")
+}
+
 record (int64out, "int64out-1") {
   field (DTYP, "S7plc")
   field (OUT,  "@Testsystem0/80 T=INT64")
@@ -26,4 +34,12 @@ record (int64out, "int64out-2") {
   field (DOL, "int64in-2")
   field (OMSL, "closed_loop")
   field (PINI, "YES")
+}
+
+record (aao, "aao-int64"){
+    field (DTYP, "S7plc")
+    field (OUT,  "@Testsystem0/96 T=INT64")
+    field (FTVL, "INT64")
+    field (NELM, "2")
+    field (OMSL, "supervisory")
 }

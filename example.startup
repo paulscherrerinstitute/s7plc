@@ -23,7 +23,7 @@ var s7plcDebug 1
 #<recvTimeout>   : time to wait for input before disconnecting [ms]
 #<sendIntervall> : time to wait before sending new data to PLC [ms]
 
-s7plcConfigure Testsystem0,127.0.0.1,2000,96,96,1,2000,100
+s7plcConfigure Testsystem0,127.0.0.1,2000,96,112,1,2000,100
 
 dbLoadRecords example.db
 
