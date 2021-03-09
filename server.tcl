@@ -2,7 +2,7 @@
 # the next line restarts using wish \
 exec wish "$0" "$@"
 set upsize 96
-set downsize 96
+set downsize 112
 
 option add *font {courier 12}
 option add *highlightThickness 1
