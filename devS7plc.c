@@ -801,6 +801,10 @@ STATIC long s7plcInitRecordBi(biRecord *record)
         case menuFtypeUSHORT:
         case menuFtypeLONG:
         case menuFtypeULONG:
+#ifdef DBR_INT64
+        case menuFtypeINT64:
+        case menuFtypeUINT64:
+#endif
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -820,6 +824,7 @@ STATIC long s7plcReadBi(biRecord *record)
     epicsUInt8 rval8;
     epicsUInt16 rval16;
     epicsUInt32 rval32;
+    epicsUInt64 rval64, mask64;
 
     if (!priv)
     {
@@ -837,7 +842,7 @@ STATIC long s7plcReadBi(biRecord *record)
                 1, &rval8);
             s7plcDebugLog(3, "bi %s: read 8bit %02x\n",
                 record->name, rval8);
-            rval32 = rval8;
+            record->rval = (epicsUInt32)rval8 & record->mask;
             break;
         case menuFtypeSHORT:
         case menuFtypeUSHORT:
@@ -845,7 +850,7 @@ STATIC long s7plcReadBi(biRecord *record)
                 2, &rval16);
             s7plcDebugLog(3, "bi %s: read 16bit %04x\n",
                 record->name, rval16);
-            rval32 = rval16;
+            record->rval = (epicsUInt32)rval16 & record->mask;
             break;
         case menuFtypeLONG:
         case menuFtypeULONG:
@@ -853,7 +858,19 @@ STATIC long s7plcReadBi(biRecord *record)
                 4, &rval32);
             s7plcDebugLog(3, "bi %s: read 32bit %04x\n",
                 record->name, rval32);
+            record->rval = rval32 & record->mask;
             break;
+#ifdef DBR_INT64
+        case menuFtypeINT64:
+        case menuFtypeUINT64:
+            status = s7plcRead(priv->station, priv->offs,
+                8, &rval64);
+            s7plcDebugLog(3, "bi %s: read 64bit %016llx\n",
+                record->name, rval64);
+            mask64 = 1 << priv->bit;
+            record->rval = !!(rval64 & mask64);
+            break;
+#endif
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
             errlogSevPrintf(errlogFatal,
@@ -861,7 +878,7 @@ STATIC long s7plcReadBi(biRecord *record)
                 record->name);
             return -1;
     }
-    record->rval = rval32 & record->mask;
+    
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -908,6 +925,10 @@ STATIC long s7plcInitRecordBo(boRecord *record)
         case menuFtypeUSHORT:
         case menuFtypeLONG:
         case menuFtypeULONG:
+#ifdef DBR_INT64
+        case menuFtypeINT64:
+        case menuFtypeUINT64:
+#endif
             break;
         default:
             errlogSevPrintf(errlogFatal,
@@ -927,6 +948,7 @@ STATIC long s7plcWriteBo(boRecord *record)
     epicsUInt8 rval8, mask8;
     epicsUInt16 rval16, mask16;
     epicsUInt32 rval32, mask32;
+    epicsUInt64 rval64, mask64;
 
     if (!priv)
     {
@@ -965,6 +987,17 @@ STATIC long s7plcWriteBo(boRecord *record)
             status = s7plcWriteMasked(priv->station, priv->offs,
                 4, &rval32, &mask32);
             break;
+#ifdef DBR_INT64
+        case menuFtypeINT64:
+        case menuFtypeUINT64:
+            rval64 = record->rval;
+            mask64 = 1 << priv->bit;
+            s7plcDebugLog(2, "bo %s: write 64bit %064llx mask %016llx\n",
+                record->name, rval64, mask64);
+            status = s7plcWriteMasked(priv->station, priv->offs,
+                8, &rval64, &mask64);
+            break;
+#endif
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
             errlogSevPrintf(errlogFatal,
