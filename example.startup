@@ -27,4 +27,7 @@ s7plcConfigure Testsystem0,127.0.0.1,2000,96,96,1,2000,100
 
 dbLoadRecords example.db
 
+# Uncomment for int64 records
+# dbLoadRecords example_int64.db
+
 iocInit
