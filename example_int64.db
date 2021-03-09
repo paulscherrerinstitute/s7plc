@@ -1,0 +1,29 @@
+record (int64in, "int64in-1") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem0/80 T=INT64")
+  field (SCAN, "I/O Intr")
+  field (FLNK, "int64out-1")
+}
+
+record (int64in, "int64in-2") {
+  field (DTYP, "S7plc")
+  field (INP,  "@Testsystem0/88 T=UINT64")
+  field (SCAN, "I/O Intr")
+  field (FLNK, "int64out-2")
+}
+
+record (int64out, "int64out-1") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem0/80 T=INT64")
+  field (DOL, "int64in-1")
+  field (OMSL, "closed_loop")
+  field (PINI, "YES")
+}
+
+record (int64out, "int64out-2") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem0/88 T=UINT64")
+  field (DOL, "int64in-2")
+  field (OMSL, "closed_loop")
+  field (PINI, "YES")
+}
