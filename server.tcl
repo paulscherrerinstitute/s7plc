@@ -1,8 +1,8 @@
 #!/bin/sh
 # the next line restarts using wish \
 exec wish "$0" "$@"
-set upsize 80
-set downsize 80
+set upsize 96
+set downsize 96
 
 option add *font {courier 12}
 option add *highlightThickness 1
