@@ -35,8 +35,13 @@ typedef struct {              /* Private structure to save IO arguments */
     unsigned short bit;       /* Bit number (0-15) for bi/bo */
     unsigned short dtype;     /* Data type */
     unsigned short dlen;      /* Data length (in bytes) */
+#ifdef DBR_INT64
+    epicsInt64 hwLow;         /* Hardware Low limit */
+    epicsInt64 hwHigh;        /* Hardware High limit */
+#else
     epicsInt32 hwLow;         /* Hardware Low limit */
     epicsInt32 hwHigh;        /* Hardware High limit */
+#endif
 } S7memPrivate_t;
 
 int s7plcIoParse(char* recordName, char *parameters, S7memPrivate_t *);
