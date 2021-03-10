@@ -122,7 +122,7 @@ STATIC long s7plcReadInt64in(int64inRecord *record)
         case menuFtypeUINT64:
             status = s7plcRead(priv->station, priv->offs,
                 8, &uval64);
-            s7plcDebugLog(3, "int64in %s: read 64bit %016llx\n",
+            s7plcDebugLog(3, "int64in %s: read 64bit "CONV64"\n",
                 record->name, uval64);
             record->val = uval64;
             break;
@@ -248,7 +248,7 @@ STATIC long s7plcWriteInt64out(int64outRecord *record)
         case menuFtypeINT64:
         case menuFtypeUINT64:
             rval64 = record->val;
-            s7plcDebugLog(2, "int64out %s: write 64bit %016llx\n",
+            s7plcDebugLog(2, "int64out %s: write 64bit "CONV64"\n",
                 record->name, rval64);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &rval64);

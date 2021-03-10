@@ -865,7 +865,7 @@ STATIC long s7plcReadBi(biRecord *record)
         case menuFtypeUINT64:
             status = s7plcRead(priv->station, priv->offs,
                 8, &rval64);
-            s7plcDebugLog(3, "bi %s: read 64bit %016llx\n",
+            s7plcDebugLog(3, "bi %s: read 64bit "CONV64"\n",
                 record->name, rval64);
             mask64 = 1 << priv->bit;
             record->rval = !!(rval64 & mask64);
@@ -990,9 +990,7 @@ STATIC long s7plcWriteBo(boRecord *record)
 #ifdef DBR_INT64
         case menuFtypeINT64:
         case menuFtypeUINT64:
-            rval64 = record->rval;
-            mask64 = 1 << priv->bit;
-            s7plcDebugLog(2, "bo %s: write 64bit %064llx mask %016llx\n",
+            s7plcDebugLog(2, "bo %s: write 64bit "CONV64" mask "CONV64"\n",
                 record->name, rval64, mask64);
             status = s7plcWriteMasked(priv->station, priv->offs,
                 8, &rval64, &mask64);
@@ -1799,7 +1797,7 @@ STATIC long s7plcReadAi(aiRecord *record)
         case menuFtypeDOUBLE:
             status = s7plcRead(priv->station, priv->offs,
                 8, &val64);
-            s7plcDebugLog(3, "ai %s: read 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(3, "ai %s: read 64bit "CONV64" = %g\n",
                 record->name, val64.i, val64.f);
             floatval = TRUE;
             break;
@@ -1985,7 +1983,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
             /* emulate scaling */
             val64.f = record->oval - record->aoff;
             if (record->aslo != 0) val64.f /= record->aslo;
-            s7plcDebugLog(2, "ao %s: write 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(2, "ao %s: write 64bit "CONV64" = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
@@ -2619,7 +2617,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
                 4, &val32);
             break;
         case menuFtypeDOUBLE:
-            s7plcDebugLog(2, "calcout %s: write 64bit " CONV64 " = %g\n",
+            s7plcDebugLog(2, "calcout %s: write 64bit "CONV64" = %g\n",
                 record->name, val64.i, val64.f);
             status = s7plcWrite(priv->station, priv->offs,
                 8, &val64);
