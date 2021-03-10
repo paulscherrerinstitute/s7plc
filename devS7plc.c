@@ -655,8 +655,8 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     }
     s7plcDebugLog(1, "s7plcIoParse %s: dlen=%d\n",recordName, priv->dlen);
     s7plcDebugLog(1, "s7plcIoParse %s: B=%d\n",   recordName, priv->bit);
-    s7plcDebugLog(1, "s7plcIoParse %s: L=%#x\n",  recordName, priv->hwLow);
-    s7plcDebugLog(1, "s7plcIoParse %s: H=%#x\n",  recordName, priv->hwHigh);
+    s7plcDebugLog(1, "s7plcIoParse %s: L="LIM_FORMAT"\n",  recordName, priv->hwLow);
+    s7plcDebugLog(1, "s7plcIoParse %s: H="LIM_FORMAT"\n",  recordName, priv->hwHigh);
 
     if (status)
     {

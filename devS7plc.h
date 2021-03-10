@@ -27,6 +27,12 @@
 #endif
 #endif
 
+#ifdef DBR_INT64
+#define LIM_FORMAT "%#llx"
+#else
+#define LIM_FORMAT "%#x"
+#endif
+
 #define S7MEM_TIME 100
 
 typedef struct {              /* Private structure to save IO arguments */
