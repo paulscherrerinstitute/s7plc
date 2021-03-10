@@ -867,7 +867,7 @@ STATIC long s7plcReadBi(biRecord *record)
                 8, &rval64);
             s7plcDebugLog(3, "bi %s: read 64bit "CONV64"\n",
                 record->name, rval64);
-            mask64 = 1 << priv->bit;
+            mask64 = 1ll << priv->bit;
             record->rval = !!(rval64 & mask64);
             break;
 #endif
@@ -990,6 +990,9 @@ STATIC long s7plcWriteBo(boRecord *record)
 #ifdef DBR_INT64
         case menuFtypeINT64:
         case menuFtypeUINT64:
+            mask64 = 1ll << priv->bit;
+            if (record->rval == 0) rval64 = 0;
+            else rval64 = mask64;
             s7plcDebugLog(2, "bo %s: write 64bit "CONV64" mask "CONV64"\n",
                 record->name, rval64, mask64);
             status = s7plcWriteMasked(priv->station, priv->offs,
