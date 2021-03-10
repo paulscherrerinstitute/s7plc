@@ -12,6 +12,12 @@ record (int64in, "int64in-2") {
   field (FLNK, "int64out-2")
 }
 
+record (bi, "bi-int64") {
+  field (DTYP, "S7plc")
+  field (INP, "@Testsystem0/80 T=INT64 B=63")
+  field (SCAN, "I/O Intr")
+}
+
 record (waveform, "wf-int64") {
   field (DTYP, "S7plc")
   field (INP,  "@Testsystem0/80")
@@ -36,10 +42,23 @@ record (int64out, "int64out-2") {
   field (PINI, "YES")
 }
 
-record (aao, "aao-int64"){
-    field (DTYP, "S7plc")
-    field (OUT,  "@Testsystem0/96 T=INT64")
-    field (FTVL, "INT64")
-    field (NELM, "2")
-    field (OMSL, "supervisory")
+record (aao, "aao-int64") {
+  field (DTYP, "S7plc")
+  field (OUT,  "@Testsystem0/96 T=INT64")
+  field (FTVL, "INT64")
+  field (NELM, "2")
+}
+
+record (bo, "bo-int64-0") {
+  field (DTYP, "S7plc")
+  field (DOL, "0")
+  field (OUT, "@Testsystem0/96 T=INT64 B=63")
+  field (PINI, "YES")
+}
+
+record (bo, "bo-int64-1") {
+  field (DTYP, "S7plc")
+  field (DOL, "1")
+  field (OUT, "@Testsystem0/96 T=INT64 B=63")
+  field (PINI, "YES")
 }
