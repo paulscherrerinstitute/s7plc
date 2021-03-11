@@ -3,3 +3,5 @@ O.*
 bin
 lib
 dbd
+db
+*envPaths

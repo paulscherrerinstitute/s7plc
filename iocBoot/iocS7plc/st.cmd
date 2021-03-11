@@ -1,6 +1,12 @@
-#!O.linux-x86/s7plcApp
-dbLoadDatabase O.Common/s7plcApp.dbd
-s7plcApp_registerRecordDeviceDriver
+#!../../bin/linux-x86_64/S7plc
+
+< envPaths
+
+cd "${TOP}"
+
+## Register all support components
+dbLoadDatabase "dbd/s7plc.dbd"
+s7plc_registerRecordDeviceDriver pdbbase
 
 #var s7plcDebug <level>
 #level=-1:  no output
@@ -12,7 +18,7 @@ s7plcApp_registerRecordDeviceDriver
 #level=5: + io printout
 #be careful using level>1 since many messages may introduce delays
 
-var s7plcDebug 1
+var s7plcDebug 0
 
 #s7plcConfigure name,IPaddr,port,inSize,outSize,bigEndian,recvTimeout,sendIntervall
 #connects to PLC <name> on address <IPaddr> port <port>
@@ -25,9 +31,10 @@ var s7plcDebug 1
 
 s7plcConfigure Testsystem0,127.0.0.1,2000,96,112,1,2000,100
 
-dbLoadRecords example.db
+dbLoadRecords "db/example.db"
 
 # Uncomment for int64 records
-# dbLoadRecords example_int64.db
+#dbLoadRecords "db/example_int64.db"
 
+cd "${TOP}/iocBoot/${IOC}"
 iocInit
