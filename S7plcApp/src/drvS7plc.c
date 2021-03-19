@@ -51,6 +51,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station);
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
 STATIC int s7plcConnect(s7plcStation* station);
 STATIC void s7plcCloseConnection(s7plcStation* station);
+STATIC int s7plcCheckConnection(s7plcStation* station);
 STATIC void s7plcSignal(void* event);
 s7plcStation* s7plcStationList = NULL;
 static epicsTimerQueueId timerqueue = NULL;
@@ -189,22 +190,25 @@ STATIC long s7plcInit()
 
     for (station = s7plcStationList; station; station=station->next)
     {
-        sprintf (threadname, "%.15sR", station->name);
-        s7plcDebugLog(1,
-            "s7plcMain %s: starting recv thread %s\n",
-            station->name, threadname);
-        station->recvThread = epicsThreadCreate(
-            threadname,
-            epicsThreadPriorityHigh,
-            epicsThreadGetStackSize(epicsThreadStackBig),
-            (EPICSTHREADFUNC)s7plcReceiveThread,
-            station);
-        if (!station->recvThread)
+        if (station->inSize)
         {
-            s7plcErrorLog(
-                "s7plcInit %s: FATAL ERROR! could not start recv thread %s\n",
+            sprintf(threadname, "%.15sR", station->name);
+            s7plcDebugLog(1,
+                "s7plcMain %s: starting recv thread %s\n",
                 station->name, threadname);
-            return -1;
+            station->recvThread = epicsThreadCreate(
+                threadname,
+                epicsThreadPriorityHigh,
+                epicsThreadGetStackSize(epicsThreadStackBig),
+                (EPICSTHREADFUNC)s7plcReceiveThread,
+                station);
+            if (!station->recvThread)
+            {
+                s7plcErrorLog(
+                    "s7plcInit %s: FATAL ERROR! could not start recv thread %s\n",
+                    station->name, threadname);
+                return -1;
+            }
         }
 
         if (station->outSize)
@@ -500,13 +504,23 @@ int s7plcWriteMaskedArray(
 
 STATIC void s7plcSendThread(s7plcStation* station)
 {
-    char*  sendBuf = callocMustSucceed(1, station->outSize, "s7plcSendThread");
+    char* sendBuf = callocMustSucceed(1, station->outSize, "s7plcSendThread");
 
     s7plcDebugLog(1, "s7plcSendThread %s: started\n",
             station->name);
 
     while (1)
     {
+        if (s7plcCheckConnection(station) == -1)
+        {
+            s7plcDebugLog(1,
+                "s7plcMain %s: connect to %s:%d failed. Retry in %g seconds\n",
+                station->name, station->server, station->serverPort,
+                (double)RECONNECT_DELAY);
+            epicsThreadSleep(RECONNECT_DELAY);
+            continue;
+        }
+
         epicsTimerStartDelay(station->timer, station->sendIntervall);
         s7plcDebugLog(2, "s7plcSendThread %s: look for data to send\n",
             station->name);
@@ -569,18 +583,14 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         int status;
         epicsTimeStamp start, end;
 
-        if (station->sockFd == -1)
+        if (s7plcCheckConnection(station) == -1)
         {
-            /* not connected */
-            if (s7plcConnect(station) < 0)
-            {
-                s7plcDebugLog(1,
-                    "s7plcMain %s: connect to %s:%d failed. Retry in %g seconds\n",
-                    station->name, station->server, station->serverPort,
-                    (double)RECONNECT_DELAY);
-                epicsThreadSleep(RECONNECT_DELAY);
-                continue;
-            }
+            s7plcDebugLog(1,
+                "s7plcMain %s: connect to %s:%d failed. Retry in %g seconds\n",
+                station->name, station->server, station->serverPort,
+                (double)RECONNECT_DELAY);
+            epicsThreadSleep(RECONNECT_DELAY);
+            continue;
         }
 
         input = 0;
@@ -707,6 +717,23 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
         return -1;
     }
     return iSelect;
+}
+
+STATIC int s7plcCheckConnection(s7plcStation* station)
+{
+    /* 0 = connection is OK, -1 = connection could not be established */
+    int connectionOk = 0;
+    epicsMutexMustLock(station->mutex);
+    if (station->sockFd == -1)
+    {
+        /* not connected */
+        if (s7plcConnect(station) < 0)
+        {
+            connectionOk = -1;
+        }
+    }
+    epicsMutexUnlock(station->mutex);
+    return connectionOk;
 }
 
 STATIC int s7plcConnect(s7plcStation* station)
