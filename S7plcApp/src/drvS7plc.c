@@ -719,6 +719,11 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
     return iSelect;
 }
 
+// Check if station is connected to the PLC, if not, try to connect
+// This function needs to lock the station because if both
+// send and recieve thread are active, they will both try to
+// connect the station to the PLC at aproximately the same time
+// at the beginning of their execution.
 STATIC int s7plcCheckConnection(s7plcStation* station)
 {
     /* 0 = connection is OK, -1 = connection could not be established */
