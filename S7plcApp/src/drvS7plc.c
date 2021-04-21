@@ -190,6 +190,7 @@ STATIC long s7plcInit()
 
     for (station = s7plcStationList; station; station=station->next)
     {
+        /* Create a receiver thread only if there will be any data to receive. */
         if (station->inSize)
         {
             sprintf(threadname, "%.15sR", station->name);
@@ -211,6 +212,7 @@ STATIC long s7plcInit()
             }
         }
 
+        /* Create a sender thread only if there will be any data to send. */
         if (station->outSize)
         {
             sprintf (threadname, "%.15sS", station->name);
@@ -511,6 +513,10 @@ STATIC void s7plcSendThread(s7plcStation* station)
 
     while (1)
     {
+        /*
+         * Check if the connection is established and establish a new if it isn't - in a
+         * thread-safe manner.
+         */
         if (s7plcCheckConnection(station) == -1)
         {
             s7plcDebugLog(1,
@@ -583,6 +589,10 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         int status;
         epicsTimeStamp start, end;
 
+        /*
+         * Check if the connection is established and establish a new if it isn't - in a
+         * thread-safe manner.
+         */
         if (s7plcCheckConnection(station) == -1)
         {
             s7plcDebugLog(1,
@@ -719,15 +729,23 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
     return iSelect;
 }
 
-// Check if station is connected to the PLC, if not, try to connect
-// This function needs to lock the station because if both
-// send and recieve thread are active, they will both try to
-// connect the station to the PLC at aproximately the same time
-// at the beginning of their execution.
+/**
+ * Checks if the connection with the PLC is established, and establishes a new connection if
+ * it isn't - in a thread-safe manner.
+ *
+ * Returns 0 if the existing connection is OK (or the connection was successfully established
+ * after it not being valid).
+ * Returns -1 if the connection was not OK, and a new one couldn't be established.
+ */
 STATIC int s7plcCheckConnection(s7plcStation* station)
 {
     /* 0 = connection is OK, -1 = connection could not be established */
     int connectionOk = 0;
+    /*
+     * Use a critical section around the socket file descriptor to avoid potential race
+     * conditions between the sending and receiving thread, when checking the state of the
+     * connection and potential (re)establishing of the connection.
+     */
     epicsMutexMustLock(station->mutex);
     if (station->sockFd == -1)
     {
