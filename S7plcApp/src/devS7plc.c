@@ -878,7 +878,7 @@ STATIC long s7plcReadBi(biRecord *record)
                 record->name);
             return -1;
     }
-    
+
     if (status == S_drv_noConn)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
