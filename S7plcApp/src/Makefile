@@ -8,7 +8,7 @@ include $(TOP)/configure/CONFIG
 USR_CPPFLAGS += -DUSE_TYPED_RSET
 
 # Check for int64 support -> base >= 3.16.1
-ifeq ($(shell expr $(EPICS_VERSION) \>= 3), 1)
+ifeq ($(shell expr $(EPICS_VERSION) \> 3), 1)
 	EPICS_INT64 = true
 else
 	ifeq ($(shell expr $(EPICS_REVISION) = 16), 1)
