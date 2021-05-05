@@ -824,7 +824,9 @@ STATIC long s7plcReadBi(biRecord *record)
     epicsUInt8 rval8;
     epicsUInt16 rval16;
     epicsUInt32 rval32;
+#ifdef DBR_INT64
     epicsUInt64 rval64, mask64;
+#endif
 
     if (!priv)
     {
@@ -948,7 +950,9 @@ STATIC long s7plcWriteBo(boRecord *record)
     epicsUInt8 rval8, mask8;
     epicsUInt16 rval16, mask16;
     epicsUInt32 rval32, mask32;
+#ifdef DBR_INT64
     epicsUInt64 rval64, mask64;
+#endif
 
     if (!priv)
     {
