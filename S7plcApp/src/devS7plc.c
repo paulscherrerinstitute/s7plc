@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <stdio.h>
-#include <limits.h>
 
 #include <biRecord.h>
 #include <boRecord.h>
