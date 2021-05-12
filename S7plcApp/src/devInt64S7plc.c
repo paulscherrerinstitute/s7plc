@@ -133,7 +133,7 @@ STATIC long s7plcReadInt64in(int64inRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -260,7 +260,7 @@ STATIC long s7plcWriteInt64out(int64outRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;

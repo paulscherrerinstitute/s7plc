@@ -363,14 +363,14 @@ int s7plcReadArray(
        errlogSevPrintf(errlogMajor,
         "s7plcRead %s/%u: offset out of range\n",
         station->name, offset);
-       return S_drv_badParam;
+       return S_dev_badArgument;
     }
     if (offset+nelem*dlen > station->inSize)
     {
        errlogSevPrintf(errlogMajor,
         "s7plcRead %s/%u: too many elements (%u)\n",
         station->name, offset, nelem);
-       return S_drv_badParam;
+       return S_dev_badArgument;
     }
     s7plcDebugLog(4,
         "s7plcReadArray (station=%p, offset=%u, dlen=%u, nelem=%u)\n",
@@ -391,8 +391,8 @@ int s7plcReadArray(
         s7plcDebugLog(5, "\n");
     }
     epicsMutexUnlock(station->mutex);
-    if (station->sockFd == -1) return S_drv_noConn;
-    return S_drv_OK;
+    if (station->sockFd == -1) return S_dev_noDevice;
+    return S_dev_success;
 }
 
 int s7plcWriteMaskedArray(
@@ -469,8 +469,8 @@ int s7plcWriteMaskedArray(
         station->outputChanged=1;
     }
     epicsMutexUnlock(station->mutex);
-    if (station->sockFd == -1) return S_drv_noConn;
-    return S_drv_OK;
+    if (station->sockFd == -1) return S_dev_noDevice;
+    return S_dev_success;
 }
 
 STATIC void s7plcSendThread(s7plcStation* station)

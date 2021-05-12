@@ -56,20 +56,6 @@ int s7plcWriteMaskedArray(
 #define s7plcRead(station, offset, dlen, pdata) \
     s7plcReadArray((station), (offset), (dlen), 1, (pdata))
 
-/************************************************************************/
-/* * DRV driver error codes */
-#define M_drvLib (1003<<16U)
-#define drvError(CODE) (M_drvLib | (CODE))
-
-#define S_drv_OK 0 /* success */
-#define S_drv_badParam drvError(1) /*driver: bad parameter*/
-#define S_drv_noMemory drvError(2) /*driver: no memory*/
-#define S_drv_noDevice drvError(3) /*driver: device not configured*/
-#define S_drv_invSigMode drvError(4)/*driver: signal mode conflicts with device config*/
-#define S_drv_cbackChg drvError(5) /*driver: specified callback differs from previous config*/
-#define S_drv_alreadyQd drvError(6)/*driver: a read request is already queued for the channel*/
-#define S_drv_noConn drvError(7) /*driver:   connection to plc lost*/
-
 #define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf(fmt, ##args);
 
 #endif /* drvS7plc_h */

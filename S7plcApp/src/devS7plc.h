@@ -2,6 +2,7 @@
 #define devS7plc_h
 
 #include <devSup.h>
+#include <devLib.h>
 #include <menuFtype.h>
 #include <errlog.h>
 #include <dbAccess.h>

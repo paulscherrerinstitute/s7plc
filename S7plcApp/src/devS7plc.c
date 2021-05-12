@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <limits.h>
 
-#include <devLib.h>
 #include <biRecord.h>
 #include <boRecord.h>
 #include <mbbiRecord.h>
@@ -464,7 +463,7 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
     while (!isalnum((unsigned char)*p))
-        if (*p++ == '\0') return S_drv_badParam;
+        if (*p++ == '\0') return S_dev_badArgument;
 
     /* Get device name */
     nchar = strcspn(p, "/");
@@ -479,7 +478,7 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     {
         errlogSevPrintf(errlogFatal, "s7plcIoParse %s: device not found\n",
             recordName);
-        return S_drv_noDevice;
+        return S_dev_noDevice;
     }
 
     /* Check station offset */
@@ -556,7 +555,7 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                         errlogSevPrintf(errlogFatal,
                             "s7plcIoParse %s: invalid datatype %s\n",
                             recordName, p);
-                        return S_drv_badParam;
+                        return S_dev_badArgument;
                     }
                 }
                 break;
@@ -582,7 +581,7 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
                 errlogSevPrintf(errlogFatal,
                     "s7plcIoParse %s: unknown parameter '%c'\n",
                     recordName, *p);
-                return S_drv_badParam;
+                return S_dev_badArgument;
         }
     }
 
@@ -599,19 +598,19 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
         errlogSevPrintf(errlogFatal,
             "s7plcIoParse %s: invalid bit number %d (>%d)\n",
             recordName, priv->bit, priv->dlen*8-1);
-        return S_drv_badParam;
+        return S_dev_badArgument;
     }
 
     /* get default values for L and H if user did'n define them */
     switch (priv->dtype)
     {
         case menuFtypeUCHAR:
-            if (priv->hwHigh > 0xFF) status = S_drv_badParam;
+            if (priv->hwHigh > 0xFF) status = S_dev_badArgument;
             if (!priv->hwHigh) priv->hwLow = 0x00;
             if (!priv->hwHigh) priv->hwHigh = 0xFF;
             break;
         case menuFtypeUSHORT:
-            if (priv->hwHigh > 0xFFFF) status = S_drv_badParam;
+            if (priv->hwHigh > 0xFFFF) status = S_dev_badArgument;
             if (!priv->hwHigh) priv->hwLow = 0x0000;
             if (!priv->hwHigh) priv->hwHigh = 0xFFFF;
             break;
@@ -620,12 +619,12 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
             if (!priv->hwHigh) priv->hwHigh = 0xFFFFFFFF;
             break;
         case menuFtypeCHAR:
-            if (priv->hwHigh > 0x7F) status = S_drv_badParam;
+            if (priv->hwHigh > 0x7F) status = S_dev_badArgument;
             if (!priv->hwHigh) priv->hwLow = 0xFFFFFF81;
             if (!priv->hwHigh) priv->hwHigh = 0x0000007F;
             break;
         case menuFtypeSHORT:
-            if (priv->hwHigh > 0x7FFF) status = S_drv_badParam;
+            if (priv->hwHigh > 0x7FFF) status = S_dev_badArgument;
             if (!priv->hwHigh) priv->hwLow = 0xFFFF8001;
             if (!priv->hwHigh) priv->hwHigh = 0x00007FFF;
             break;
@@ -743,7 +742,7 @@ STATIC long s7plcReadStat(biRecord *record)
     assert(priv->station);
     /* psudo-read (0 bytes) just to get the connection status */
     status = s7plcReadArray(priv->station, 0, 0, 0, NULL);
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         record->rval = 0;
         return 0;
@@ -870,7 +869,7 @@ STATIC long s7plcReadBi(biRecord *record)
             return -1;
     }
 
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -999,7 +998,7 @@ STATIC long s7plcWriteBo(boRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1104,7 +1103,7 @@ STATIC long s7plcReadMbbi(mbbiRecord *record)
             return -1;
     }
     record->rval = rval32 & record->mask;
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1213,7 +1212,7 @@ STATIC long s7plcWriteMbbo(mbboRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1318,7 +1317,7 @@ STATIC long s7plcReadMbbiDirect(mbbiDirectRecord *record)
             return -1;
     }
     record->rval = rval32 & record->mask;
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1426,7 +1425,7 @@ STATIC long s7plcWriteMbboDirect(mbboDirectRecord *record)
                 "%s: unexpected data type requested\n", record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1551,7 +1550,7 @@ STATIC long s7plcReadLongin(longinRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1656,7 +1655,7 @@ STATIC long s7plcWriteLongout(longoutRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1804,7 +1803,7 @@ STATIC long s7plcReadAi(aiRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -1991,7 +1990,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -2085,7 +2084,7 @@ STATIC long s7plcReadStringin(stringinRecord *record)
         /* truncate oversize string */
         record->val[priv->dlen] = 0;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -2159,7 +2158,7 @@ STATIC long s7plcWriteStringout(stringoutRecord *record)
         record->name, priv->dlen, priv->dlen, record->val);
     status = s7plcWriteArray(priv->station, priv->offs,
         1, priv->dlen, record->val);
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -2468,7 +2467,7 @@ STATIC long s7plcWriteAao(aaoRecord *record)
             dlen, record->nelm, record->bptr);
     }
 
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
@@ -2624,7 +2623,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
                 record->name);
             return -1;
     }
-    if (status == S_drv_noConn)
+    if (status == S_dev_noDevice)
     {
         recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
         return status;
