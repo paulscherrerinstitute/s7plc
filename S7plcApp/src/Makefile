@@ -7,15 +7,9 @@ include $(TOP)/configure/CONFIG
 # Use typed rset structure (see 3.16.1 release notes)
 USR_CPPFLAGS += -DUSE_TYPED_RSET
 
-# Check for int64 support -> base >= 3.16.1
-ifeq ($(shell expr $(EPICS_VERSION) \> 3), 1)
-	EPICS_INT64 = true
-else
-	ifeq ($(shell expr $(EPICS_REVISION) = 16), 1)
-		ifeq ($(shell expr $(EPICS_MODIFICATION) \>= 1), 1)
-			EPICS_INT64 = true
-		endif
-	endif
+# Check for int64 support
+ifneq ($(wildcard $(EPICS_BASE)/include/int64*Record.h),)
+EPICS_INT64 = true
 endif
 
 # Documentation
