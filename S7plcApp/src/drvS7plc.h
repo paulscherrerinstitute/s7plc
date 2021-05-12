@@ -1,9 +1,3 @@
-/* $Author: zimoch $ */
-/* $Date: 2015/06/29 09:45:47 $ */
-/* $Id: drvS7plc.h,v 1.4 2015/06/29 09:45:47 zimoch Exp $ */
-/* $Name:  $ */
-/* $Revision: 1.4 $ */
-
 #ifndef drvS7plc_h
 #define drvS7plc_h
 
