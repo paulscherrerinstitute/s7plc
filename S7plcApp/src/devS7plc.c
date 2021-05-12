@@ -5,8 +5,6 @@
 #include <limits.h>
 
 #include <devLib.h>
-#include <epicsVersion.h>
-
 #include <biRecord.h>
 #include <boRecord.h>
 #include <mbbiRecord.h>
@@ -22,16 +20,9 @@
 #include <waveformRecord.h>
 #include <aaiRecord.h>
 #include <aaoRecord.h>
-
-#ifdef BASE_VERSION
-#define EPICS_3_13
-#include "compat3_13.h"
-#else
-#include <postfix.h>
 #include <calcoutRecord.h>
 #include <cantProceed.h>
 #include <epicsExport.h>
-#endif
 
 #include "drvS7plc.h"
 #include "devS7plc.h"
@@ -348,7 +339,6 @@ struct devsup s7plcAao =
 epicsExportAddress(dset, s7plcAao);
 
 /* calcout **********************************************************/
-#ifndef EPICS_3_13
 
 STATIC long s7plcInitRecordCalcout(calcoutRecord *);
 STATIC long s7plcWriteCalcout(calcoutRecord *);
@@ -372,7 +362,6 @@ struct {
 };
 
 epicsExportAddress(dset, s7plcCalcout);
-#endif
 
 /*********  Support for "I/O Intr" for input records ******************/
 
@@ -1735,7 +1724,7 @@ STATIC long s7plcReadAi(aiRecord *record)
     epicsInt32 sval32;
     epicsUInt32 uval32;
     union {epicsFloat32 f; epicsUInt32 i; } val32;
-    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
+    union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -1912,7 +1901,7 @@ STATIC long s7plcWriteAo(aoRecord *record)
     epicsUInt16 rval16;
     epicsUInt32 rval32;
     union {epicsFloat32 f; epicsUInt32 i; } val32;
-    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
+    union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -2494,7 +2483,6 @@ STATIC long s7plcWriteAao(aaoRecord *record)
 }
 
 /* calcout **********************************************************/
-#ifndef EPICS_3_13
 
 STATIC long s7plcInitRecordCalcout(calcoutRecord *record)
 {
@@ -2549,7 +2537,7 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
     epicsInt16 sval16;
     epicsInt32 sval32;
     union {epicsFloat32 f; epicsUInt32 i; } val32;
-    __extension__ union {epicsFloat64 f; epicsUInt64 i; } val64;
+    union {epicsFloat64 f; epicsUInt64 i; } val64;
 
     if (!priv)
     {
@@ -2647,5 +2635,3 @@ STATIC long s7plcWriteCalcout(calcoutRecord *record)
     }
     return status;
 }
-
-#endif

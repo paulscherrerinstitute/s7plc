@@ -5,27 +5,12 @@
 #include <unistd.h>
 #include <errno.h>
 #include <netinet/in.h>
-
-#if defined(vxWorks) || defined(__vxworks)
-#include <inetLib.h>
-#include <sockLib.h>
-#define in_addr_t unsigned long
-#define socklen_t int
-#define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
-#else
 #include <fcntl.h>
-#include <sys/select.h>
-#endif
 
 #include <drvSup.h>
 #include <devLib.h>
 #include <errlog.h>
-#include <epicsVersion.h>
 
-#ifdef BASE_VERSION
-#define EPICS_3_13
-#include "compat3_13.h"
-#else
 #include <osiSock.h>
 #include <dbAccess.h>
 #include <iocsh.h>
@@ -35,8 +20,8 @@
 #include <epicsTimer.h>
 #include <epicsEvent.h>
 #include <epicsTime.h>
+#include <epicsString.h>
 #include <epicsExport.h>
-#endif
 
 #include "drvS7plc.h"
 
@@ -99,19 +84,6 @@ struct s7plcStation {
 #undef s7plcDebugLog
 #define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf("%s " fmt, currentTime() , ##args)
 
-#ifdef BASE_VERSION
-/* 3.13 */
-STATIC char* currentTime()
-{
-    static char buffer [40];
-    TS_STAMP stamp;
-    tsLocalTime(&stamp);
-    tsStampToText(&stamp, TS_TEXT_MMDDYY, buffer);
-    buffer[21] = 0;
-    return buffer;
-}
-#else
-/* 3.14+ */
 STATIC char* currentTime()
 {
     static char buffer [40];
@@ -120,7 +92,6 @@ STATIC char* currentTime()
     epicsTimeToStrftime(buffer, sizeof(buffer), "%m/%d/%y %H:%M:%S.%03f", &stamp);
     return buffer;
 }
-#endif
 
 STATIC void hexdump(unsigned char* data, int size, int ascii)
 {
@@ -284,7 +255,7 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
     station->outBuffer = (unsigned char*)(station+1)+inSize;
     station->name = (char*)(station+1)+inSize+outSize;
     strcpy(station->name, name);
-    station->server = IPaddr ? strdup(IPaddr) : NULL;
+    station->server = IPaddr ? epicsStrDup(IPaddr) : NULL;
     station->swapBytes = bigEndian ^ bigEndianIoc;
     station->sockFd = -1;
     station->mutex = epicsMutexMustCreate();
@@ -314,7 +285,6 @@ int s7plcConfigure(char *name, char* IPaddr, unsigned int port, unsigned int inS
     return 0;
 }
 
-#ifndef EPICS_3_13
 static const iocshArg s7plcConfigureArg0 = { "name", iocshArgString };
 static const iocshArg s7plcConfigureArg1 = { "IPaddr", iocshArgString };
 static const iocshArg s7plcConfigureArg2 = { "IPport", iocshArgInt };
@@ -350,7 +320,6 @@ static void s7plcRegister()
 }
 
 epicsExportRegistrar(s7plcRegister);
-#endif
 
 s7plcStation *s7plcOpen(char *name)
 {
@@ -913,7 +882,7 @@ int s7plcSetAddr(s7plcStation* station, const char* addr)
     epicsMutexMustLock(station->mutex);
     s7plcCloseConnection(station);
     free(station->server);
-    station->server = strdup(addr);
+    station->server = epicsStrDup(addr);
     c = strchr(station->server, ':');
     if (c)
     {

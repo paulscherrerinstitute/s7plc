@@ -1,21 +1,14 @@
 #ifndef devS7plc_h
 #define devS7plc_h
 
-
 #include <devSup.h>
 #include <menuFtype.h>
 #include <errlog.h>
 #include <dbAccess.h>
 #include <alarm.h>
 #include <recGbl.h>
+#include <epicsMath.h>
 #include "drvS7plc.h"
-
-#define isnan(x) ((x)!=(x))
-
-/* suppress compiler warning concerning long long with __extension__ */
-#if (!defined __GNUC__) || (__GNUC__ < 2) || (__GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __extension__
-#endif
 
 #ifndef epicsUInt64
 #if (LONG_MAX > 2147483647L)
@@ -62,7 +55,5 @@ struct devsup {
     DEVSUPFUN get_ioint_info;
     DEVSUPFUN io;
 };
-
-
 
 #endif /* devS7plc_h */
