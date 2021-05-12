@@ -79,11 +79,7 @@ struct s7plcStation {
     float sendIntervall;
 };
 
-#define s7plcErrorLog(fmt, args...) errlogPrintf("%s " fmt, currentTime() , ##args)
-#undef s7plcDebugLog
-#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf("%s " fmt, currentTime() , ##args)
-
-STATIC char* currentTime()
+char* s7plcCurrentTime()
 {
     static char buffer [40];
     epicsTimeStamp stamp;

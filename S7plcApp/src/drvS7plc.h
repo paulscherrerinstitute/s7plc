@@ -50,6 +50,18 @@ int s7plcWriteMaskedArray(
 #define s7plcRead(station, offset, dlen, pdata) \
     s7plcReadArray((station), (offset), (dlen), 1, (pdata))
 
-#define s7plcDebugLog(level, fmt, args...) if (level <= s7plcDebug) errlogPrintf(fmt, ##args);
+char* s7plcCurrentTime();
+
+#if defined __GNUC__ && __GNUC__ < 3
+/* old GCC style */
+#define s7plcDebugLog(level, fmt, args...) do{if (level <= s7plcDebug) errlogPrintf("%s " fmt, s7plcCurrentTime() , ##args);}while(0)
+#define s7plcErrorLog(fmt, args...) errlogPrintf("%s " fmt, s7plcCurrentTime() , ##args)
+#else
+/* posix style */
+#define s7plcDebugLog(level, fmt, ...) do{if (level <= s7plcDebug) errlogPrintf("%s " fmt, s7plcCurrentTime(), ##__VA_ARGS__);}while(0)
+#define s7plcErrorLog(fmt, ...) errlogPrintf("%s " fmt, s7plcCurrentTime() , ##__VA_ARGS__)
+#endif
+
+
 
 #endif /* drvS7plc_h */
