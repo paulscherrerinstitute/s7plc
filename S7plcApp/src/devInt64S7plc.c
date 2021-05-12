@@ -223,7 +223,7 @@ STATIC long s7plcWriteInt64out(int64outRecord *record)
     {
         case menuFtypeCHAR:
         case menuFtypeUCHAR:
-            rval8 = record->val;
+            rval8 = (epicsUInt8)record->val;
             s7plcDebugLog(2, "int64out %s: write 8bit %02x\n",
                 record->name, rval8);
             status = s7plcWrite(priv->station, priv->offs,
@@ -231,7 +231,7 @@ STATIC long s7plcWriteInt64out(int64outRecord *record)
             break;
         case menuFtypeSHORT:
         case menuFtypeUSHORT:
-            rval16 = record->val;
+            rval16 = (epicsUInt16)record->val;
             s7plcDebugLog(2, "int64out %s: write 16bit %04x\n",
                 record->name, rval16);
             status = s7plcWrite(priv->station, priv->offs,
@@ -239,7 +239,7 @@ STATIC long s7plcWriteInt64out(int64outRecord *record)
             break;
         case menuFtypeLONG:
         case menuFtypeULONG:
-            rval32 = record->val;
+            rval32 = (epicsUInt32)record->val;
             s7plcDebugLog(2, "int64out %s: write 32bit %08x\n",
                 record->name, rval32);
             status = s7plcWrite(priv->station, priv->offs,

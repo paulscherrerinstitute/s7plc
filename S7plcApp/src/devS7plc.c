@@ -413,7 +413,8 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
 {
     char devName[255];
     char *p = par, separator;
-    int nchar, i;
+    size_t nchar;
+    int i;
     int status = 0;
 
     struct {char* name; int dlen; menuFtype type;} datatypes [] =
