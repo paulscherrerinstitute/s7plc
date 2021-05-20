@@ -4,10 +4,15 @@ include Makefile
 else
 include /ioc/tools/driver.makefile
 
-BUILDCLASSES+=Linux
-DBDS += s7plcBase.dbd
-DBDS_3.14 += s7plcCalcout.dbd
-DBDS_3.14 += s7plcReg.dbd
-SOURCES += drvS7plc.c
-SOURCES += devS7plc.c
+BUILDCLASSES+=vxWorks Linux WIN32
+DBDS += S7plcApp/src/s7plcBase.dbd
+DBDS_3.14 += S7plcApp/src/s7plcCalcout.dbd
+DBDS_3.14 += S7plcApp/src/s7plcReg.dbd
+SOURCES += S7plcApp/src/drvS7plc.c
+SOURCES += S7plcApp/src/devS7plc.c
+ifneq ($(wildcard $(EPICS_BASE)/include/int64*Record.h),)
+DBDS += S7plcApp/src/s7plcInt64.dbd
+SOURCES += S7plcApp/src/devInt64S7plc.c
+endif
+USR_CPPFLAGS+=-DDEBUG
 endif
