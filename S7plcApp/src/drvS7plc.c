@@ -22,6 +22,15 @@
 #define SET_TIMEOUT_ERROR errno = ETIMEDOUT
 #endif
 
+#ifdef vxWorks
+#include <version.h>
+#ifndef _WRS_VXWORKS_MAJOR
+#include <ioLib.h>
+#define ioctl(s,c,o) ioctl(s,c,(int)o)
+#endif
+#define socklen_t int
+#endif
+
 #include <drvSup.h>
 #include <devLib.h>
 #include <errlog.h>
@@ -749,6 +758,7 @@ STATIC int s7plcConnect(s7plcStation* station)
     SOCKET sock;
     struct sockaddr_in serverAddr = {0};
     struct timeval to;
+    int nonblocking;
     char errmsg[100];
 
     s7plcDebugLog(1, "s7plcConnect %s: IP=%s port=%d\n",
@@ -778,19 +788,8 @@ STATIC int s7plcConnect(s7plcStation* station)
     /* connect to server */
     to.tv_sec=(int)(CONNECT_TIMEOUT);
     to.tv_usec=(int)(CONNECT_TIMEOUT-to.tv_sec)*1000000;
-#if defined(vxWorks) || defined(__vxworks)
-    if (connectWithTimeout(sock,
-        (struct sockaddr *) &serverAddr, sizeof (serverAddr), &to) < 0)
-    {
-        s7plcErrorLog(
-            "s7plcConnect %s: connectWithTimeout(%d, %s:%d, %g sec) failed: %s\n",
-            station->name, sock, station->server, station->serverPort, CONNECT_TIMEOUT, strerror(errno));
-        close(sock);
-        return -1;
-    }
-#else
     /* connect in non-blocking mode to use select with timeout */
-    int nonblocking = 1;
+    nonblocking = 1;
     ioctl(sock, FIONBIO, &nonblocking);
     if (connect(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0)
     {
@@ -850,7 +849,6 @@ STATIC int s7plcConnect(s7plcStation* station)
     /* connected */
     nonblocking = 0;
     ioctl(sock, FIONBIO, &nonblocking);
-#endif
     s7plcErrorLog(
         "s7plcConnect %s: connected to %s:%d\n",
         station->name, station->server, station->serverPort);
