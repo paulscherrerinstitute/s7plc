@@ -484,7 +484,7 @@ STATIC void s7plcSendThread(s7plcStation* station)
         if (s7plcCheckConnection(station) == -1)
         {
             s7plcDebugLog(1,
-                "s7plcMain %s: connect to %s:%d failed. Retry in %g seconds\n",
+                "s7plcMain %s: s7plcSendThread connect to %s:%d failed. Retry in %g seconds\n",
                 station->name, station->server, station->serverPort,
                 (double)RECONNECT_DELAY);
             epicsThreadSleep(RECONNECT_DELAY);
@@ -560,7 +560,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         if (s7plcCheckConnection(station) == -1)
         {
             s7plcDebugLog(1,
-                "s7plcMain %s: connect to %s:%d failed. Retry in %g seconds\n",
+                "s7plcMain %s: s7plcReceiveThread connect to %s:%d failed. Retry in %g seconds\n",
                 station->name, station->server, station->serverPort,
                 (double)RECONNECT_DELAY);
             epicsThreadSleep(RECONNECT_DELAY);
