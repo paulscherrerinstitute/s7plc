@@ -32,10 +32,10 @@ STATIC long s7plcInit();
 void s7plcMain();
 STATIC void s7plcSendThread(s7plcStation* station);
 STATIC void s7plcReceiveThread(s7plcStation* station);
+STATIC void s7plcConnectThread(s7plcStation* station);
 STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
 STATIC int s7plcConnect(s7plcStation* station);
 STATIC void s7plcCloseConnection(s7plcStation* station);
-STATIC int s7plcCheckConnection(s7plcStation* station);
 STATIC void s7plcSignal(void* event);
 s7plcStation* s7plcStationList = NULL;
 static epicsTimerQueueId timerqueue = NULL;
@@ -73,8 +73,10 @@ struct s7plcStation {
     int outputChanged;
     IOSCANPVT inScanPvt;
     IOSCANPVT outScanPvt;
+    epicsThreadId connectThread;
     epicsThreadId sendThread;
     epicsThreadId recvThread;
+    int printConnErr;
     float recvTimeout;
     float sendIntervall;
 };
@@ -156,6 +158,25 @@ STATIC long s7plcInit()
 
     for (station = s7plcStationList; station; station=station->next)
     {
+        /* Create a thread that manages connecting */
+        sprintf(threadname, "%.15sC", station->name);
+        s7plcDebugLog(1,
+            "s7plcMain %s: starting connect thread %s\n",
+            station->name, threadname);
+        station->connectThread = epicsThreadCreate(
+            threadname,
+            epicsThreadPriorityHigh,
+            epicsThreadGetStackSize(epicsThreadStackBig),
+            (EPICSTHREADFUNC)s7plcConnectThread,
+            station);
+        if (!station->connectThread)
+        {
+            s7plcErrorLog(
+                "s7plcInit %s: FATAL ERROR! could not start connect thread %s\n",
+                station->name, threadname);
+            return -1;
+        }
+
         /* Create a receiver thread only if there will be any data to receive. */
         if (station->inSize)
         {
@@ -478,16 +499,22 @@ STATIC void s7plcSendThread(s7plcStation* station)
     while (1)
     {
         /*
-         * Check if the connection is established and establish a new if it isn't - in a
-         * thread-safe manner.
+         * Check if the connection is established
          */
-        if (s7plcCheckConnection(station) == -1)
+        if (station->sockFd == -1)
         {
+            if (station->printConnErr == 1)
+            {
+                s7plcErrorLog(
+                    "s7plcSendThread %s: disconnected from %s:%d\n",
+                    station->name, station->server, station->serverPort);
+                s7plcCloseConnection(station);
+                station->printConnErr = 0;
+            }
             s7plcDebugLog(1,
-                "s7plcMain %s: s7plcSendThread connect to %s:%d failed. Retry in %g seconds\n",
-                station->name, station->server, station->serverPort,
-                (double)RECONNECT_DELAY);
-            epicsThreadSleep(RECONNECT_DELAY);
+                "s7plcMain %s: s7plcSendThread connection down, sleeping %g seconds\n",
+                station->name, (double)CONNECT_TIMEOUT/4);
+            epicsThreadSleep(CONNECT_TIMEOUT/4);
             continue;
         }
 
@@ -553,20 +580,6 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         int status;
         epicsTimeStamp start, end;
 
-        /*
-         * Check if the connection is established and establish a new if it isn't - in a
-         * thread-safe manner.
-         */
-        if (s7plcCheckConnection(station) == -1)
-        {
-            s7plcDebugLog(1,
-                "s7plcMain %s: s7plcReceiveThread connect to %s:%d failed. Retry in %g seconds\n",
-                station->name, station->server, station->serverPort,
-                (double)RECONNECT_DELAY);
-            epicsThreadSleep(RECONNECT_DELAY);
-            continue;
-        }
-
         input = 0;
         timeout = station->recvTimeout;
         /* check (with timeout) for data arrival from server */
@@ -582,10 +595,14 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
             waitTime = epicsTimeDiffInSeconds(&end, &start);
             if (status < 0)
             {
-                s7plcErrorLog(
-                    "s7plcReceiveThread %s: waiting for input failed: %s\n",
-                    station->name,
-                    strerror(errno));
+                if (station->printConnErr == 1)
+                {
+                    s7plcErrorLog(
+                        "s7plcReceiveThread %s: waiting for input failed: %s\n",
+                        station->name,
+                        strerror(errno));
+                    station->printConnErr = 0;
+                }
                 s7plcCloseConnection(station);
                 break;
             }
@@ -596,19 +613,27 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
                 received = recv(station->sockFd, (void*)recvBuf+input, receiveSize-input, 0);
                 if (received == 0)
                 {
-                    s7plcErrorLog(
-                        "s7plcReceiveThread %s: connection closed by %s\n",
-                        station->name, station->server);
+                    if (station->printConnErr == 1)
+                    {
+                        s7plcErrorLog(
+                            "s7plcReceiveThread %s: connection closed by %s\n",
+                            station->name, station->server);
+                        station->printConnErr = 0;
+                    }
                     s7plcCloseConnection(station);
                     break;
                 }
                 if (received < 0)
                 {
-                    s7plcErrorLog(
-                        "s7plcReceiveThread %s: recv(%d, ..., %d, 0) failed: %s\n",
-                        station->name,
-                        station->sockFd, station->inSize-input,
-                        strerror(errno));
+                    if (station->printConnErr == 1)
+                    {
+                        s7plcErrorLog(
+                            "s7plcReceiveThread %s: recv(%d, ..., %d, 0) failed: %s\n",
+                            station->name,
+                            station->sockFd, station->inSize-input,
+                            strerror(errno));
+                        station->printConnErr = 0;
+                    }
                     s7plcCloseConnection(station);
                     break;
                 }
@@ -642,12 +667,52 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         }
         else
         {
+            if (station->printConnErr == 1)
+            {
+                s7plcErrorLog(
+                    "s7plcReceiveThread %s: disconnected from %s:%d\n",
+                    station->name, station->server, station->serverPort);
+                s7plcCloseConnection(station);
+                station->printConnErr = 0;
+            }
             s7plcDebugLog(1,
                 "s7plcReceiveThread %s: connection down, sleeping %g seconds\n",
                 station->name, CONNECT_TIMEOUT/4);
             /* lost connection. Wait some time */
             epicsThreadSleep(CONNECT_TIMEOUT/4);
         }
+    }
+}
+
+STATIC void s7plcConnectThread(s7plcStation* station)
+{
+    s7plcDebugLog(1, "s7plcConnectThread %s: started\n",
+            station->name);
+    
+    while (1)
+    {
+        /*
+         * Check if the connection is established and establish a new if it isn't - in a
+         * thread-safe manner.
+         */
+        //s7plcCheckConnection(station, TRY_CONNECT);
+
+        epicsMutexMustLock(station->mutex);
+        if (station->sockFd == -1)
+        {
+            /* not connected */
+            if (s7plcConnect(station) < 0)
+            {
+                s7plcDebugLog(1,
+                    "s7plcMain %s: s7plcConnectThread connect to %s:%d failed. Retry in %g seconds\n",
+                    station->name, station->server, station->serverPort,
+                    (double)RECONNECT_DELAY); 
+            }
+            
+        }
+        epicsMutexUnlock(station->mutex);
+
+        epicsThreadSleep(RECONNECT_DELAY);
     }
 }
 
@@ -691,36 +756,6 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
         return -1;
     }
     return iSelect;
-}
-
-/**
- * Checks if the connection with the PLC is established, and establishes a new connection if
- * it isn't - in a thread-safe manner.
- *
- * Returns 0 if the existing connection is OK (or the connection was successfully established
- * after it not being valid).
- * Returns -1 if the connection was not OK, and a new one couldn't be established.
- */
-STATIC int s7plcCheckConnection(s7plcStation* station)
-{
-    /* 0 = connection is OK, -1 = connection could not be established */
-    int connectionOk = 0;
-    /*
-     * Use a critical section around the socket file descriptor to avoid potential race
-     * conditions between the sending and receiving thread, when checking the state of the
-     * connection and potential (re)establishing of the connection.
-     */
-    epicsMutexMustLock(station->mutex);
-    if (station->sockFd == -1)
-    {
-        /* not connected */
-        if (s7plcConnect(station) < 0)
-        {
-            connectionOk = -1;
-        }
-    }
-    epicsMutexUnlock(station->mutex);
-    return connectionOk;
 }
 
 STATIC int s7plcConnect(s7plcStation* station)
@@ -827,6 +862,7 @@ STATIC int s7plcConnect(s7plcStation* station)
         station->name, station->server, station->serverPort);
 
     station->sockFd = sockFd;
+    station->printConnErr = 1;
     return 0;
 }
 
