@@ -37,7 +37,7 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout);
 STATIC int s7plcConnect(s7plcStation* station);
 STATIC void s7plcCloseConnection(s7plcStation* station);
 STATIC void s7plcSignal(void* event);
-STATIC void s7plcGetSock(s7plcStation* station, int *sockFd);
+STATIC int s7plcGetSock(s7plcStation* station);
 s7plcStation* s7plcStationList = NULL;
 static epicsTimerQueueId timerqueue = NULL;
 static short bigEndianIoc;
@@ -123,7 +123,7 @@ STATIC long s7plcIoReport(int level)
     for (station = s7plcStationList; station;
         station=station->next)
     {
-        s7plcGetSock(station, &sockFd);
+        sockFd = s7plcGetSock(station);
         printf("  %s %s %s:%d\n",
             station->name,
             sockFd != -1 ? "connected to" : "disconnected from",
@@ -408,7 +408,7 @@ int s7plcReadArray(
         s7plcDebugLog(5, "\n");
     }
     epicsMutexUnlock(station->mutex);
-    s7plcGetSock(station, &sockFd);
+    sockFd = s7plcGetSock(station);
     if (sockFd == -1) return S_dev_noDevice;
     return S_dev_success;
 }
@@ -488,7 +488,7 @@ int s7plcWriteMaskedArray(
         station->outputChanged=1;
     }
     epicsMutexUnlock(station->mutex);
-    s7plcGetSock(station, &sockFd);
+    sockFd = s7plcGetSock(station);
     if (sockFd == -1) return S_dev_noDevice;
     return S_dev_success;
 }
@@ -506,7 +506,7 @@ STATIC void s7plcSendThread(s7plcStation* station)
         /*
          * Check if the connection is established
          */
-        s7plcGetSock(station, &sockFd);
+        sockFd = s7plcGetSock(station);
         if (sockFd == -1)
         {
             s7plcDebugLog(1,
@@ -529,7 +529,7 @@ STATIC void s7plcSendThread(s7plcStation* station)
                 station->outputChanged = 0;
                 epicsMutexUnlock(station->mutex);
 
-                s7plcGetSock(station, &sockFd);
+                sockFd = s7plcGetSock(station);
                 if (sockFd != -1)
                 {
                     int written;
@@ -583,7 +583,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
         input = 0;
         timeout = station->recvTimeout;
         /* check (with timeout) for data arrival from server */
-        s7plcGetSock(station, &sockFd);
+        sockFd = s7plcGetSock(station);
         while (sockFd != -1 && input < station->inSize)
         {
             s7plcDebugLog(3,
@@ -643,7 +643,7 @@ STATIC void s7plcReceiveThread(s7plcStation* station)
                 break;
             }
         }
-        s7plcGetSock(station, &sockFd);
+        sockFd = s7plcGetSock(station);
         if (sockFd != -1)
         {
             epicsMutexMustLock(station->mutex);
@@ -705,7 +705,7 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
     int iSelect;
     fd_set socklist;
 
-    s7plcGetSock(station, &sockFd);
+    sockFd = s7plcGetSock(station);
     FD_ZERO(&socklist);
     FD_SET(sockFd, &socklist);
     to.tv_sec=(int)timeout;
@@ -717,7 +717,7 @@ STATIC int s7plcWaitForInput(s7plcStation* station, double timeout)
 
     while ((iSelect=select(sockFd+1,&socklist, 0, 0,&to)) < 0)
     {
-        s7plcGetSock(station, &stationSockFd);
+        stationSockFd = s7plcGetSock(station);
         if (stationSockFd == -1) return -1;
         if (errno != EINTR)
         {
@@ -907,9 +907,13 @@ int s7plcSetAddr(s7plcStation* station, const char* addr)
 }
 
 
-STATIC void s7plcGetSock(s7plcStation* station, int *sockFd)
+STATIC int s7plcGetSock(s7plcStation* station)
 {
+    int sockFd;
+
     epicsMutexMustLock(station->mutex);
-    *sockFd = station->sockFd;
+    sockFd = station->sockFd;
     epicsMutexUnlock(station->mutex);
+
+    return sockFd;
 }
