@@ -14,5 +14,6 @@ ifneq ($(wildcard $(EPICS_BASE)/include/int64*Record.h),)
 DBDS += S7plcApp/src/s7plcInt64.dbd
 SOURCES += S7plcApp/src/devInt64S7plc.c
 endif
+TEMPLATES=$(wildcard S7plcApp/Db/*.template)
 USR_CPPFLAGS+=-DDEBUG
 endif
