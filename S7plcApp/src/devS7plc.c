@@ -614,23 +614,36 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
             if (!priv->hwHigh) priv->hwHigh = 0xFFFF;
             break;
         case menuFtypeULONG:
+            if (priv->hwHigh > 0xFFFFFFFF) status = S_dev_badArgument;
             if (!priv->hwHigh) priv->hwLow = 0x00000000;
             if (!priv->hwHigh) priv->hwHigh = 0xFFFFFFFF;
             break;
         case menuFtypeCHAR:
             if (priv->hwHigh > 0x7F) status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwLow = 0xFFFFFF81;
-            if (!priv->hwHigh) priv->hwHigh = 0x0000007F;
+            if (!priv->hwHigh) priv->hwLow = -0x7F;
+            if (!priv->hwHigh) priv->hwHigh = 0x7F;
             break;
         case menuFtypeSHORT:
             if (priv->hwHigh > 0x7FFF) status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwLow = 0xFFFF8001;
-            if (!priv->hwHigh) priv->hwHigh = 0x00007FFF;
+            if (!priv->hwHigh) priv->hwLow = -0x7FFF;
+            if (!priv->hwHigh) priv->hwHigh = 0x7FFF;
             break;
         case menuFtypeLONG:
-            if (!priv->hwHigh) priv->hwLow = 0x80000001;
+            if (priv->hwHigh > 0x7FFFFFFF) status = S_dev_badArgument;
+            if (!priv->hwHigh) priv->hwLow = -0x7FFFFFFF;
             if (!priv->hwHigh) priv->hwHigh = 0x7FFFFFFF;
             break;
+#ifdef DBR_INT64
+        case menuFtypeUINT64:
+            if (!priv->hwHigh) priv->hwLow =  0x0000000000000000LL;
+            if (!priv->hwHigh) priv->hwHigh = 0xFFFFFFFFFFFFFFFFLL;
+            break;
+        case menuFtypeINT64:
+            if (priv->hwHigh > 0x7FFFFFFFFFFFFFFFLL) status = S_dev_badArgument;
+            if (!priv->hwHigh) priv->hwLow = -0x7FFFFFFFFFFFFFFFLL;
+            if (!priv->hwHigh) priv->hwHigh = 0x7FFFFFFFFFFFFFFFLL;
+            break;
+#endif
         default:
             if (priv->hwHigh || priv->hwLow) {
                 errlogSevPrintf(errlogMinor,
@@ -642,8 +655,8 @@ int s7plcIoParse(char* recordName, char *par, S7memPrivate_t *priv)
     }
     s7plcDebugLog(1, "s7plcIoParse %s: dlen=%d\n",recordName, priv->dlen);
     s7plcDebugLog(1, "s7plcIoParse %s: B=%d\n",   recordName, priv->bit);
-    s7plcDebugLog(1, "s7plcIoParse %s: L="LIM_FORMAT"\n",  recordName, priv->hwLow);
-    s7plcDebugLog(1, "s7plcIoParse %s: H="LIM_FORMAT"\n",  recordName, priv->hwHigh);
+    s7plcDebugLog(1, "s7plcIoParse %s: L=%#llx\n",recordName, priv->hwLow);
+    s7plcDebugLog(1, "s7plcIoParse %s: H=%#llx\n",recordName, priv->hwHigh);
 
     if (status)
     {
@@ -1833,15 +1846,30 @@ STATIC long s7plcReadAi(aiRecord *record)
 
 STATIC long s7plcSpecialLinconvAi(aiRecord *record, int after)
 {
-    epicsUInt32 hwSpan;
+    epicsUInt64 hwSpan;
     S7memPrivate_t *priv = (S7memPrivate_t *)record->dpvt;
 
     if (after) {
         hwSpan = priv->hwHigh - priv->hwLow;
         record->eslo = (record->eguf - record->egul) / hwSpan;
-        record->eoff =
-            (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
-            / hwSpan;
+        switch (priv->dtype)
+        {
+            case menuFtypeCHAR:
+            case menuFtypeSHORT:
+            case menuFtypeLONG:
+                record->eoff =
+                    ((epicsInt64)priv->hwHigh * record->egul - (epicsInt64)priv->hwLow * record->eguf)
+                    / hwSpan;
+                s7plcDebugLog(1, "s7plcSpecialLinconvAi(%s): signed H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
+                    record->name,(epicsInt64)priv->hwHigh, (epicsInt64)priv->hwHigh, (epicsInt64)priv->hwLow, (epicsInt64)priv->hwLow, (unsigned long long)hwSpan, record->eslo, record->eoff);
+                break;
+            default:
+                record->eoff =
+                    ((epicsUInt64)priv->hwHigh * record->egul - (epicsUInt64)priv->hwLow * record->eguf)
+                    / hwSpan;
+                s7plcDebugLog(1, "s7plcSpecialLinconvAi(%s): unsigned H=0x%llx=%llu, L=0x%llx=%llu, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
+                    record->name, (epicsUInt64)priv->hwHigh, (epicsUInt64)priv->hwHigh, (epicsUInt64)priv->hwLow, (epicsUInt64)priv->hwLow, (unsigned long long)hwSpan, record->eslo, record->eoff);
+        }
     }
     return 0;
 }
@@ -2009,9 +2037,20 @@ STATIC long s7plcSpecialLinconvAo(aoRecord *record, int after)
     if (after) {
         hwSpan = priv->hwHigh - priv->hwLow;
         record->eslo = (record->eguf - record->egul) / hwSpan;
-        record->eoff =
-            (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
-            / hwSpan;
+        switch (priv->dtype)
+        {
+            case menuFtypeCHAR:
+            case menuFtypeSHORT:
+            case menuFtypeLONG:
+                record->eoff =
+                    ((epicsInt32)priv->hwHigh * record->egul - (epicsInt32)priv->hwLow * record->eguf)
+                    / hwSpan;
+                break;
+            default:
+                record->eoff =
+                    ((epicsUInt32)priv->hwHigh * record->egul - (epicsUInt32)priv->hwLow * record->eguf)
+                    / hwSpan;
+        }
     }
     return 0;
 }
