@@ -2,8 +2,6 @@
 
 < envPaths
 
-cd "${TOP}"
-
 ## Register all support components
 dbLoadDatabase "dbd/s7plc.dbd"
 s7plc_registerRecordDeviceDriver pdbbase
@@ -29,12 +27,12 @@ var s7plcDebug 0
 #<recvTimeout>   : time to wait for input before disconnecting [ms]
 #<sendIntervall> : time to wait before sending new data to PLC [ms]
 
-s7plcConfigure Testsystem0,127.0.0.1,2000,96,112,1,2000,100
+s7plcConfigure Testsystem0,localhost,2000,96,112,1,2000,100
 
-dbLoadRecords "db/example.db"
+epicsEnvSet EPICS_DB_INCLUDE_PATH, ".:db:../../S7plcApp/Db"
+dbLoadRecords "example.db"
 
 # Uncomment for int64 records
-#dbLoadRecords "db/example_int64.db"
+#dbLoadRecords "example_int64.db"
 
-cd "${TOP}/iocBoot/${IOC}"
 iocInit
