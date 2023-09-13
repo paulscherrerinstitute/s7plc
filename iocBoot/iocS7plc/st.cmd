@@ -3,8 +3,8 @@
 < envPaths
 
 ## Register all support components
-dbLoadDatabase "dbd/s7plc.dbd"
-s7plc_registerRecordDeviceDriver pdbbase
+dbLoadDatabase "dbd/S7plcApp.dbd"
+S7plcApp_registerRecordDeviceDriver pdbbase
 
 #var s7plcDebug <level>
 #level=-1:  no output
