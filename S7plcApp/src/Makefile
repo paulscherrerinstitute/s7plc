@@ -16,9 +16,8 @@ endif
 HTMLS_DIR = $(TOP)/html
 HTMLS += s7plc.html
 
-# Install xxxSupport.dbd into <top>/dbd
-DBD += s7plc.dbd
-s7plc_DBD += base.dbd
+DBDCAT += s7plc.dbd
+
 s7plc_DBD += s7plcBase.dbd
 s7plc_DBD += s7plcCalcout.dbd
 s7plc_DBD += s7plcReg.dbd
@@ -42,19 +41,17 @@ s7plc_LIBS += $(EPICS_BASE_IOC_LIBS)
 PROD_IOC = S7plcApp
 
 # S7plcApp.dbd will be created and installed
-#DBD += S7plcApp.dbd
-#
+DBD += S7plcApp.dbd
+
+S7plcApp.dbd$(DEP): $(COMMON_DIR)/s7plc.dbd
+
+
 ## S7plcApp.dbd will include these files:
-#S7plcApp_DBD += base.dbd
-#S7plcApp_DBD += s7plcBase.dbd
-#S7plcApp_DBD += s7plcCalcout.dbd
-#S7plcApp_DBD += s7plcReg.dbd
-#ifdef EPICS_INT64
-#	S7plcApp_DBD += s7plcInt64.dbd
-#endif
+S7plcApp_DBD += base.dbd
+S7plcApp_DBD += s7plc.dbd
 
 # S7plcApp_registerRecordDeviceDriver.cpp derives from S7plcApp.dbd
-S7plcApp_SRCS += s7plc_registerRecordDeviceDriver.cpp
+S7plcApp_SRCS += S7plcApp_registerRecordDeviceDriver.cpp
 
 # Build the main IOC entry point where needed
 S7plcApp_SRCS_DEFAULT += S7plcMain.cpp
