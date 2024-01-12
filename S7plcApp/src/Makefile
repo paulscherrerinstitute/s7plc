@@ -13,7 +13,6 @@ EPICS_INT64 = true
 endif
 
 # Documentation
-HTMLS_DIR = $(TOP)/html
 HTMLS += s7plc.html
 
 # Install xxxSupport.dbd into <top>/dbd
